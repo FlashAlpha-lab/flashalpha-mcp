@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "flashalpha": {
+      "type": "http",
+      "url": "https://lab.flashalpha.com/mcp"
+    }
+  }
+}
