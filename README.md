@@ -362,8 +362,8 @@ Once connected, you can ask your AI assistant questions like these:
 
 | Plan | Daily Requests | Access |
 |---|---|---|
-| Free | 10 | Stock quotes, GEX/DEX/VEX/CHEX by strike, levels, BSM greeks, IV solver, tickers, options meta, surface, stock summary |
-| Basic | 250 | Everything in Free + index symbols (SPX, VIX, RUT) |
+| Free | 5 | Stock quotes, GEX/DEX/VEX/CHEX by strike, levels, BSM greeks, IV solver, tickers, options meta, surface, stock summary |
+| Basic | 100 | Everything in Free + index symbols (SPX, VIX, RUT) |
 | Growth | 2,500 | + Exposure summary, narrative, 0DTE analytics, volatility analytics, option quotes, full-chain GEX, Kelly sizing |
 | Alpha | Unlimited | + Advanced volatility (SVI, variance surfaces, arbitrage detection, greeks surfaces, variance swap), VRP analytics |
 | Enterprise | Unlimited | Full access + admin endpoints |
