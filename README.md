@@ -360,18 +360,19 @@ Once connected, you can ask your AI assistant questions like these:
 
 ## Rate Limits
 
-| Plan | Requests / minute | Requests / day | Tools available |
-|---|---|---|---|
-| Free | 10 | 100 | GetStockQuote, GetTickers, GetOptionChain, GetAccount, CalculateGreeks, SolveIV |
-| Starter | 30 | 1,000 | All free tools + GetGex, GetDex, GetLevels |
-| Pro | 60 | 10,000 | All tools |
-| Enterprise | Custom | Custom | All tools + priority support |
+| Plan | Daily Requests | Access |
+|---|---|---|
+| Free | 10 | Stock quotes, GEX/DEX/VEX/CHEX by strike, levels, BSM greeks, IV solver, tickers, options meta, surface, stock summary |
+| Basic | 250 | Everything in Free + index symbols (SPX, VIX, RUT) |
+| Growth | 2,500 | + Exposure summary, narrative, 0DTE analytics, volatility analytics, option quotes, full-chain GEX, Kelly sizing |
+| Alpha | Unlimited | + Advanced volatility (SVI, variance surfaces, arbitrage detection, greeks surfaces, variance swap), VRP analytics |
+| Enterprise | Unlimited | Full access + admin endpoints |
 
 ---
 
 ## Plans & Tool Access
 
-| Tool | Free | Starter | Pro | Enterprise |
+| Tool | Free | Basic | Growth | Alpha |
 |---|---|---|---|---|
 | GetStockQuote | yes | yes | yes | yes |
 | GetTickers | yes | yes | yes | yes |
@@ -379,14 +380,14 @@ Once connected, you can ask your AI assistant questions like these:
 | GetAccount | yes | yes | yes | yes |
 | CalculateGreeks | yes | yes | yes | yes |
 | SolveIV | yes | yes | yes | yes |
-| GetGex | no | yes | yes | yes |
-| GetDex | no | yes | yes | yes |
-| GetLevels | no | yes | yes | yes |
-| GetVex | no | no | yes | yes |
+| GetGex | yes | yes | yes | yes |
+| GetDex | yes | yes | yes | yes |
+| GetVex | yes | yes | yes | yes |
+| GetLevels | yes | yes | yes | yes |
+| GetStockSummary | cached | cached | yes | yes |
 | GetExposureSummary | no | no | yes | yes |
 | GetNarrative | no | no | yes | yes |
 | GetVolatility | no | no | yes | yes |
-| GetStockSummary | no | no | yes | yes |
 
 ---
 
