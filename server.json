@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.flashalpha-lab/flashalpha",
+  "description": "Real-time options analytics MCP server. 23 tools for gamma/delta/vanna/charm exposure, dealer positioning, 0DTE analytics, SVI volatility surfaces, VRP, Black-Scholes greeks, Kelly sizing, and historical tick data for US equities.",
+  "repository": {
+    "url": "https://github.com/FlashAlpha-lab/flashalpha-mcp",
+    "source": "github"
+  },
+  "version": "1.2.0",
+  "remotes": [
+    {
+      "transport": {
+        "type": "streamable-http",
+        "url": "https://lab.flashalpha.com/mcp"
+      }
+    }
+  ]
+}
