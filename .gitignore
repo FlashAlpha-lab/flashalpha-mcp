@@ -67,3 +67,6 @@ venv.bak/
 # OS
 .DS_Store
 Thumbs.db
+
+# MCP Registry credentials (never commit)
+.mcpregistry_*
