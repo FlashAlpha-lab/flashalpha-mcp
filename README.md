@@ -1,12 +1,12 @@
 # FlashAlpha MCP Server — Real-Time Options Analytics for AI Assistants
 
-Connect Claude, Cursor, Windsurf, or any MCP-compatible AI assistant to live options market data. Access gamma exposure (GEX), delta exposure (DEX), vanna exposure (VEX), charm exposure (CHEX), Black-Scholes greeks, implied volatility, 0DTE analytics, volatility surfaces, dealer positioning, and more — all through natural language.
+Connect Claude, Cursor, Windsurf, or any MCP-compatible AI assistant to live options market data. Access a **live options screener** (filter/rank by GEX, VRP, IV, greeks), gamma exposure (GEX), delta exposure (DEX), vanna exposure (VEX), charm exposure (CHEX), Black-Scholes greeks, implied volatility, 0DTE analytics, volatility surfaces, dealer positioning, and more — all through natural language.
 
 ---
 
 ## What Is This
 
-This repository provides documentation, setup instructions, and test scripts for the FlashAlpha MCP server. The server itself runs at `https://lab.flashalpha.com/mcp` and is not open source. It exposes 14 tools covering options analytics, greeks, exposure metrics, and market data through the Model Context Protocol so that AI assistants can answer quantitative finance questions using live data.
+This repository provides documentation, setup instructions, and test scripts for the FlashAlpha MCP server. The server itself runs at `https://lab.flashalpha.com/mcp` and is not open source. It exposes 15 tools covering a live options screener, options analytics, greeks, exposure metrics, VRP and harvest scores, and market data through the Model Context Protocol so that AI assistants can answer quantitative finance questions using live data.
 
 ---
 
@@ -118,6 +118,7 @@ The key is passed per-call rather than in a header so that it works uniformly ac
 
 | Tool | Category | Description |
 |---|---|---|
+| `RunScreener` | **Screener** | **Live options screener — filter/rank symbols by GEX, VRP, IV, greeks, harvest scores, and more** |
 | `GetStockQuote` | Market Data | Real-time or delayed stock quote for a ticker |
 | `GetTickers` | Market Data | Search for tickers by name or symbol |
 | `GetOptionChain` | Market Data | Full option chain with strikes, expiries, bids, asks, OI, volume |
@@ -136,6 +137,43 @@ The key is passed per-call rather than in a header so that it works uniformly ac
 ---
 
 ## Tool Reference
+
+### RunScreener
+
+Live options screener — filter and rank symbols by gamma exposure, VRP,
+volatility, greeks, harvest scores, and more. Powered by an in-memory store
+updated every 5-10s from live market data.
+
+**Growth:** 10-symbol universe (SPY, QQQ, AAPL, TSLA, NVDA, AMZN, META, MSFT, SPX, AMD), up to 10 rows per query.
+**Alpha:** ~250 symbols, up to 50 rows, custom formulas, and harvest/dealer-flow-risk scores.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `apiKey` | string | yes | Your FlashAlpha API key |
+| `filters` | object | no | Recursive filter tree (AND/OR groups with leaf conditions) |
+| `sort` | array | no | Sort specs applied in order, e.g. `[{"field": "harvest_score", "direction": "desc"}]` |
+| `select` | array | no | Field names to return, or `["*"]` for the full flat object |
+| `formulas` | array | no | Computed fields (Alpha only), e.g. `[{"alias": "vrp_ratio", "expression": "atm_iv / rv_20d"}]` |
+| `limit` | number | no | Row cap: 1-10 (Growth), 1-50 (Alpha). Default 50 |
+| `offset` | number | no | Pagination offset (Alpha only). Default 0 |
+
+Returns: `{meta: {total_count, tier, as_of, ...}, data: [{symbol, price, regime, ...}, ...]}`.
+
+Filter leaf: `{"field": "atm_iv", "operator": "gte", "value": 20}`.
+Filter group: `{"op": "and", "conditions": [...]}` (nest up to 3 levels, 20 leaf conditions max).
+Operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `is_null`, `is_not_null`.
+
+Dotted field prefixes for cascading filters: `expiries.X`, `strikes.X`, `contracts.X`
+(e.g., `{"field": "contracts.delta", "operator": "gte", "value": 0.3}`).
+
+Example prompt for Claude: *"Find negative-gamma names with dealer flow risk above 50"*
+or *"Show me harvestable VRP setups with harvest score over 65"*.
+
+See the full [Screener spec](https://flashalpha.com/docs/lab-api-screener) and
+[cookbook](https://flashalpha.com/docs/lab-api-screener-cookbook) for all fields,
+examples, and recipes.
+
+---
 
 ### GetStockQuote
 
@@ -341,20 +379,24 @@ Returns: implied volatility as a decimal, convergence status, number of iteratio
 
 Once connected, you can ask your AI assistant questions like these:
 
-1. "What is the current gamma exposure for SPY?"
-2. "Where is the zero gamma level for QQQ today?"
-3. "Show me the call wall and put wall for AAPL."
-4. "What does dealer positioning look like for SPY right now?"
-5. "Calculate the delta and gamma for the SPY 540 call expiring this Friday."
-6. "What is the implied volatility for TSLA's at-the-money options?"
-7. "Give me a narrative of current SPY options market structure."
-8. "What is the vanna exposure for NDX ahead of FOMC?"
-9. "Solve the implied volatility for an NVDA 900 put trading at $12.50 with spot at $875."
-10. "Show me SPY's full option chain for the nearest expiry."
-11. "What is the DEX for IWM and what does it imply for direction?"
-12. "Give me an exposure summary for AMZN."
-13. "What are the key support and resistance levels for SPX based on GEX?"
-14. "How does SPY's realized volatility compare to implied volatility this week?"
+1. **"Screen my universe for harvestable VRP setups with harvest score above 65."**
+2. **"Find negative-gamma names where dealer flow risk is above 50, sorted by risk."**
+3. **"Show stocks trading in contango with VRP above 3% and atm_iv over 20."**
+4. **"Rank symbols by IV premium over realized vol (atm_iv - rv_20d), top 10."**
+5. "What is the current gamma exposure for SPY?"
+6. "Where is the zero gamma level for QQQ today?"
+7. "Show me the call wall and put wall for AAPL."
+8. "What does dealer positioning look like for SPY right now?"
+9. "Calculate the delta and gamma for the SPY 540 call expiring this Friday."
+10. "What is the implied volatility for TSLA's at-the-money options?"
+11. "Give me a narrative of current SPY options market structure."
+12. "What is the vanna exposure for NDX ahead of FOMC?"
+13. "Solve the implied volatility for an NVDA 900 put trading at $12.50 with spot at $875."
+14. "Show me SPY's full option chain for the nearest expiry."
+15. "What is the DEX for IWM and what does it imply for direction?"
+16. "Give me an exposure summary for AMZN."
+17. "What are the key support and resistance levels for SPX based on GEX?"
+18. "How does SPY's realized volatility compare to implied volatility this week?"
 
 ---
 
@@ -374,6 +416,7 @@ Once connected, you can ask your AI assistant questions like these:
 
 | Tool | Free | Basic | Growth | Alpha |
 |---|---|---|---|---|
+| RunScreener | no | no | yes (10 symbols, 10 rows) | yes (~250 symbols, 50 rows, formulas) |
 | GetStockQuote | yes | yes | yes | yes |
 | GetTickers | yes | yes | yes | yes |
 | GetOptionChain | yes | yes | yes | yes |
@@ -391,12 +434,22 @@ Once connected, you can ask your AI assistant questions like these:
 
 ---
 
+## SDKs
+
+| Language | Package | Repository |
+|----------|---------|------------|
+| Python | `pip install flashalpha` | [flashalpha-python](https://github.com/FlashAlpha-lab/flashalpha-python) |
+| JavaScript | `npm i flashalpha` | [flashalpha-js](https://github.com/FlashAlpha-lab/flashalpha-js) |
+| .NET | `dotnet add package FlashAlpha` | [flashalpha-dotnet](https://github.com/FlashAlpha-lab/flashalpha-dotnet) |
+| Java | Maven Central | [flashalpha-java](https://github.com/FlashAlpha-lab/flashalpha-java) |
+| Go | `go get github.com/FlashAlpha-lab/flashalpha-go` | [flashalpha-go](https://github.com/FlashAlpha-lab/flashalpha-go) |
+
 ## Links
 
-- **FlashAlpha:** [flashalpha.com](https://flashalpha.com)
-- **API Documentation:** [flashalpha.com/docs](https://flashalpha.com/docs)
-- **Python SDK:** [github.com/FlashAlpha-lab/flashalpha-python](https://github.com/FlashAlpha-lab/flashalpha-python)
-- **JavaScript SDK:** [github.com/FlashAlpha-lab/flashalpha-js](https://github.com/FlashAlpha-lab/flashalpha-js)
-- **.NET SDK:** [github.com/FlashAlpha-lab/flashalpha-dotnet](https://github.com/FlashAlpha-lab/flashalpha-dotnet)
-- **Java SDK:** [github.com/FlashAlpha-lab/flashalpha-java](https://github.com/FlashAlpha-lab/flashalpha-java)
-- **Go SDK:** [github.com/FlashAlpha-lab/flashalpha-go](https://github.com/FlashAlpha-lab/flashalpha-go)
+- [FlashAlpha](https://flashalpha.com) — API keys, docs, pricing
+- [API Documentation](https://flashalpha.com/docs)
+- [Examples](https://github.com/FlashAlpha-lab/flashalpha-examples) — runnable tutorials
+- [GEX Explained](https://github.com/FlashAlpha-lab/gex-explained) — gamma exposure theory and code
+- [0DTE Options Analytics](https://github.com/FlashAlpha-lab/0dte-options-analytics) — 0DTE pin risk, expected move, dealer hedging
+- [Volatility Surface Python](https://github.com/FlashAlpha-lab/volatility-surface-python) — SVI calibration, variance swap, skew analysis
+- [Awesome Options Analytics](https://github.com/FlashAlpha-lab/awesome-options-analytics) — curated resource list
