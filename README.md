@@ -6,7 +6,7 @@ Connect Claude, Cursor, Windsurf, or any MCP-compatible AI assistant to live opt
 
 ## What Is This
 
-This repository provides documentation, setup instructions, and test scripts for the FlashAlpha MCP server. The server itself runs at `https://lab.flashalpha.com/mcp` and is not open source. It exposes 15 tools covering a live options screener, options analytics, greeks, exposure metrics, VRP and harvest scores, and market data through the Model Context Protocol so that AI assistants can answer quantitative finance questions using live data.
+This repository provides documentation, setup instructions, and test scripts for the FlashAlpha MCP server. The server itself runs at `https://lab.flashalpha.com/mcp` and is not open source. It exposes 16 tools covering a live options screener, max pain analysis, options analytics, greeks, exposure metrics, VRP and harvest scores, and market data through the Model Context Protocol so that AI assistants can answer quantitative finance questions using live data.
 
 ---
 
@@ -127,6 +127,7 @@ The key is passed per-call rather than in a header so that it works uniformly ac
 | `GetDex` | Exposure | Delta exposure (DEX) aggregated across the chain |
 | `GetVex` | Exposure | Vanna exposure (VEX) — sensitivity of delta to implied volatility |
 | `GetLevels` | Exposure | Key price levels derived from dealer exposure (call wall, put wall, zero gamma) |
+| `GetMaxPain` | Exposure | Max pain analysis with dealer alignment, pain curve, OI breakdown, pin probability, multi-expiry calendar |
 | `GetExposureSummary` | Exposure | Aggregate exposure summary across GEX, DEX, VEX, and CHEX |
 | `GetNarrative` | Exposure | Natural language narrative describing current dealer positioning |
 | `GetVolatility` | Volatility | Implied volatility surface, term structure, and skew data |
@@ -284,6 +285,20 @@ Returns: call wall price, put wall price, zero gamma (flip) level, gamma-weighte
 
 ---
 
+### GetMaxPain
+
+Max pain analysis for a symbol — max pain strike, pain curve, OI breakdown, dealer alignment overlay (gamma flip, call/put walls), expected move, pin probability, and multi-expiry calendar.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `apiKey` | string | yes | Your FlashAlpha API key |
+| `symbol` | string | yes | Underlying stock symbol |
+| `expiration` | string | no | Filter to a single expiry (YYYY-MM-DD). Omit for full-chain analysis. |
+
+Returns: `{max_pain_strike, distance, signal, pain_curve, oi_by_strike, dealer_alignment, regime, expected_move, pin_probability, max_pain_by_expiration}`.
+
+---
+
 ### GetExposureSummary
 
 Returns an aggregate summary of all exposure metrics — GEX, DEX, VEX, and charm exposure (CHEX) — in a single call.
@@ -417,6 +432,7 @@ Once connected, you can ask your AI assistant questions like these:
 | Tool | Free | Basic | Growth | Alpha |
 |---|---|---|---|---|
 | RunScreener | no | no | yes (10 symbols, 10 rows) | yes (~250 symbols, 50 rows, formulas) |
+| GetMaxPain | no | no | yes | yes |
 | GetStockQuote | yes | yes | yes | yes |
 | GetTickers | yes | yes | yes | yes |
 | GetOptionChain | yes | yes | yes | yes |
