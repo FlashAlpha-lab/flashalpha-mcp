@@ -1,28 +1,32 @@
 # FlashAlpha MCP Server — Real-Time Options Analytics for AI Assistants
 
-Connect Claude, Cursor, Windsurf, or any MCP-compatible AI assistant to live options market data. Access a **live options screener** (filter/rank by GEX, VRP, IV, greeks), gamma exposure (GEX), delta exposure (DEX), vanna exposure (VEX), charm exposure (CHEX), Black-Scholes greeks, implied volatility, 0DTE analytics, volatility surfaces, dealer positioning, and more — all through natural language.
+Connect Claude, ChatGPT, Cursor, Windsurf, or any MCP-compatible AI assistant to live options market data. **40 tools** covering gamma exposure (GEX), delta/vanna/charm exposure, max pain, key dealer-positioning levels, IV surfaces (SVI), VRP analytics, Black-Scholes greeks, Kelly sizing, 0DTE intraday flow, plus minute-resolution **historical replay back to April 2018** for backtesting.
 
 ---
 
-## What Is This
+## What is this repo
 
-This repository provides documentation, setup instructions, and test scripts for the FlashAlpha MCP server. The server itself runs at `https://lab.flashalpha.com/mcp` and is not open source. It exposes 16 tools covering a live options screener, max pain analysis, options analytics, greeks, exposure metrics, VRP and harvest scores, and market data through the Model Context Protocol so that AI assistants can answer quantitative finance questions using live data.
+Documentation, setup snippets, and `server.json` metadata for the FlashAlpha remote MCP server. The server itself runs at `https://lab.flashalpha.com/mcp` (and `/mcp-oauth` for OAuth-authenticated clients) — its source is not open. Use this repo as a reference for how to wire FlashAlpha into your AI client of choice.
 
 ---
 
-## Server URL
+## Server URLs
 
-```
-https://lab.flashalpha.com/mcp
-```
+Two endpoints, identical tool catalog, different authentication:
+
+| Endpoint | Auth | When to use |
+|---|---|---|
+| `https://lab.flashalpha.com/mcp` | `apiKey` tool parameter | Self-hosted clients: Claude Desktop, Claude Code CLI, Cursor, Windsurf, VS Code Copilot |
+| `https://lab.flashalpha.com/mcp-oauth` | OAuth 2.1 + PKCE + DCR (RFC 7591) | Claude Connector Directory, ChatGPT Apps, Perplexity custom connectors, any host that requires OAuth-authenticated remote MCP |
 
 - **Transport:** Streamable HTTP
-- **Protocol version:** MCP 2025-03-26
-- **Auth:** API key passed as a parameter on each tool call (see [Authentication](#authentication))
+- **Protocol version:** MCP 2025-06-18
+- **OAuth discovery:** [`https://lab.flashalpha.com/.well-known/oauth-protected-resource`](https://lab.flashalpha.com/.well-known/oauth-protected-resource) (RFC 9728)
+- **Authorization server:** `https://flashalpha.com/oauth`
 
 ---
 
-## Quick Setup
+## Quick Setup (self-hosted clients → `/mcp` + `apiKey`)
 
 ### Claude Desktop
 
@@ -39,23 +43,16 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 }
 ```
 
-See `examples/claude_desktop_config.json` for a complete template.
-
 ### Claude Code CLI
 
 ```bash
 claude mcp add flashalpha --transport http https://lab.flashalpha.com/mcp
-```
-
-Verify it was added:
-
-```bash
 claude mcp list
 ```
 
 ### Cursor
 
-Open **Settings > MCP** and add a new server entry:
+**Settings → MCP** → Add server:
 
 ```json
 {
@@ -66,11 +63,9 @@ Open **Settings > MCP** and add a new server entry:
 }
 ```
 
-See `examples/cursor_settings.json` for the full settings block.
-
 ### VS Code (Copilot / Continue)
 
-Add the server to your VS Code MCP settings (`.vscode/mcp.json` or user settings):
+`.vscode/mcp.json` or user settings:
 
 ```json
 {
@@ -83,11 +78,9 @@ Add the server to your VS Code MCP settings (`.vscode/mcp.json` or user settings
 }
 ```
 
-See `examples/vscode_mcp_settings.json` for a complete example.
+### Windsurf
 
-### Windsurf (Cascade > MCP)
-
-Open **Cascade settings**, navigate to **MCP Servers**, and add:
+**Cascade settings → MCP Servers**:
 
 ```json
 {
@@ -98,355 +91,186 @@ Open **Cascade settings**, navigate to **MCP Servers**, and add:
 }
 ```
 
+### Perplexity (Pro/Max/Enterprise)
+
+**Settings → Connectors → + Custom connector → Remote**
+
+- URL: `https://lab.flashalpha.com/mcp-oauth`
+- Auth: OAuth (walks the consent flow at `flashalpha.com/oauth/login`)
+
 ---
 
 ## Authentication
 
-Every tool call requires an `apiKey` parameter. Pass your FlashAlpha API key as a string argument to each tool:
+### `/mcp` (apiKey)
+
+Every tool call takes `apiKey` as a string parameter. Get a free key at [flashalpha.com](https://flashalpha.com).
 
 ```
 apiKey: "fa_your_key_here"
 ```
 
-Get a free API key at [flashalpha.com](https://flashalpha.com).
+Key passes per-call rather than in a header so it works uniformly across all MCP clients without transport-level configuration.
 
-The key is passed per-call rather than in a header so that it works uniformly across all MCP clients without requiring transport-level configuration.
+### `/mcp-oauth` (Bearer)
 
----
+OAuth 2.1 + PKCE + Dynamic Client Registration (RFC 7591). The client registers itself, walks the authorization-code + PKCE flow, and presents a Bearer JWT on each request. **No `apiKey` parameter needed** — the server resolves the user's account from the OAuth identity and forwards the API key internally for upstream `/v1/*` calls. Same per-user tier gating and rate limits apply as the apiKey flow.
 
-## Available Tools
+Discovery + endpoints:
 
-| Tool | Category | Description |
-|---|---|---|
-| `RunScreener` | **Screener** | **Live options screener — filter/rank symbols by GEX, VRP, IV, greeks, harvest scores, and more** |
-| `GetStockQuote` | Market Data | Real-time or delayed stock quote for a ticker |
-| `GetTickers` | Market Data | Search for tickers by name or symbol |
-| `GetOptionChain` | Market Data | Full option chain with strikes, expiries, bids, asks, OI, volume |
-| `GetAccount` | Account | Account info and subscription plan details |
-| `GetGex` | Exposure | Gamma exposure (GEX) by strike and expiry for dealer positioning |
-| `GetDex` | Exposure | Delta exposure (DEX) aggregated across the chain |
-| `GetVex` | Exposure | Vanna exposure (VEX) — sensitivity of delta to implied volatility |
-| `GetLevels` | Exposure | Key price levels derived from dealer exposure (call wall, put wall, zero gamma) |
-| `GetMaxPain` | Exposure | Max pain analysis with dealer alignment, pain curve, OI breakdown, pin probability, multi-expiry calendar |
-| `GetExposureSummary` | Exposure | Aggregate exposure summary across GEX, DEX, VEX, and CHEX |
-| `GetNarrative` | Exposure | Natural language narrative describing current dealer positioning |
-| `GetVolatility` | Volatility | Implied volatility surface, term structure, and skew data |
-| `GetStockSummary` | Summary | Combined summary of price, greeks, and exposure for a ticker |
-| `CalculateGreeks` | Pricing | Black-Scholes greeks for a given option (delta, gamma, theta, vega, rho) |
-| `SolveIV` | Pricing | Solve implied volatility from an observed option price |
+| | |
+|---|---|
+| RFC 9728 protected-resource metadata | `https://lab.flashalpha.com/.well-known/oauth-protected-resource` |
+| OIDC discovery | `https://flashalpha.com/oauth/.well-known/openid-configuration` |
+| JWKS | `https://flashalpha.com/oauth/.well-known/jwks` |
+| Dynamic Client Registration | `POST https://flashalpha.com/oauth/register` |
+| Authorization endpoint | `https://flashalpha.com/oauth/authorize` |
+| Token endpoint | `https://flashalpha.com/oauth/token` |
+| Scope | `flashalpha.mcp` |
 
 ---
 
-## Tool Reference
+## Tool Catalog (40 tools)
 
-### RunScreener
+Tool names below are the **exact strings sent via `tools/call`** — snake_case, not the PascalCase C# method names. Copy verbatim.
 
-Live options screener — filter and rank symbols by gamma exposure, VRP,
-volatility, greeks, harvest scores, and more. Powered by an in-memory store
-updated every 5-10s from live market data.
+### Live tools (23)
 
-**Growth:** 10-symbol universe (SPY, QQQ, AAPL, TSLA, NVDA, AMZN, META, MSFT, SPX, AMD), up to 10 rows per query.
-**Alpha:** ~250 symbols, up to 50 rows, custom formulas, and harvest/dealer-flow-risk scores.
+#### Market Data (5)
+| Tool | Description |
+|---|---|
+| `get_stock_quote` | Real-time stock quote (bid, ask, mid, last) |
+| `get_tickers` | List/search available tickers |
+| `get_option_chain` | Available expirations + strikes metadata |
+| `get_option_quote` | Live option quote: bid, ask, mid, IV, greeks, OI, volume |
+| `get_account` | Plan, daily quota, usage today, remaining calls |
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `filters` | object | no | Recursive filter tree (AND/OR groups with leaf conditions) |
-| `sort` | array | no | Sort specs applied in order, e.g. `[{"field": "harvest_score", "direction": "desc"}]` |
-| `select` | array | no | Field names to return, or `["*"]` for the full flat object |
-| `formulas` | array | no | Computed fields (Alpha only), e.g. `[{"alias": "vrp_ratio", "expression": "atm_iv / rv_20d"}]` |
-| `limit` | number | no | Row cap: 1-10 (Growth), 1-50 (Alpha). Default 50 |
-| `offset` | number | no | Pagination offset (Alpha only). Default 0 |
+#### Exposure Analytics (9)
+| Tool | Description |
+|---|---|
+| `get_gex` | Gamma exposure (GEX) by strike — call/put walls, gamma flip |
+| `get_dex` | Delta exposure (DEX) by strike — net dealer delta |
+| `get_vex` | Vanna exposure (VEX) by strike — dealer hedging response to vol moves |
+| `get_chex` | Charm exposure (CHEX) by strike — time-decay-driven flows |
+| `get_levels` | Gamma flip, call/put walls, max pain, highest OI strike, 0DTE magnet |
+| `get_exposure_summary` | Net GEX/DEX/VEX/CHEX, regime, hedging estimates, top strikes, 0DTE breakdown |
+| `get_narrative` | Verbal analysis: regime, levels, dealer positioning, implications |
+| `get_max_pain` | Max pain strike, pain curve, put/call OI ratio, dealer alignment, pin probability |
+| `get_zero_dte` | 0DTE analytics: intraday gamma, time-decay acceleration, pin risk, hedging pressure |
 
-Returns: `{meta: {total_count, tier, as_of, ...}, data: [{symbol, price, regime, ...}, ...]}`.
+#### Volatility & Pricing (9)
+| Tool | Description |
+|---|---|
+| `get_surface` | Live 50×50 implied-volatility surface grid over (tenor, log-moneyness) |
+| `get_volatility` | ATM IV, realized vol (5/10/20/30d), VRP, 25-δ skew, term structure, GEX-by-DTE |
+| `get_advanced_volatility` | SVI parameters, forward prices, variance surface, arbitrage flags, vanna/charm/volga surfaces, variance-swap fair values (Alpha) |
+| `get_vrp` | Volatility risk premium dashboard: IV vs RV, percentiles, regime, strategy scores |
+| `get_vrp_history` | Historical VRP time series for charting + backtesting |
+| `get_stock_summary` | One-call combined summary: price, IV, VRP, skew, term, exposure, macro context |
+| `calculate_greeks` | Black-Scholes greeks (Δ, Γ, Θ, ν, ρ, vanna, charm, speed, zomma, color) |
+| `solve_iv` | Solve implied volatility from market price (BSM inversion) |
+| `calculate_kelly` | Kelly criterion optimal sizing for an option trade |
 
-Filter leaf: `{"field": "atm_iv", "operator": "gte", "value": 20}`.
-Filter group: `{"op": "and", "conditions": [...]}` (nest up to 3 levels, 20 leaf conditions max).
-Operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `is_null`, `is_not_null`.
+### Historical replay tools (17, Alpha tier)
 
-Dotted field prefixes for cascading filters: `expiries.X`, `strikes.X`, `contracts.X`
-(e.g., `{"field": "contracts.delta", "operator": "gte", "value": 0.3}`).
+All historical tools take a required `at=YYYY-MM-DDTHH:mm:ss` parameter (ET wall-clock) and replay the matching live analytic at any minute since 2018-04-16. Response shapes are identical to the live counterparts — backtesting code that parses live responses works on historical with a tool-name swap.
 
-Example prompt for Claude: *"Find negative-gamma names with dealer flow risk above 50"*
-or *"Show me harvestable VRP setups with harvest score over 65"*.
+| Tool | Mirrors |
+|---|---|
+| `get_historical_gex` | `get_gex` |
+| `get_historical_dex` | `get_dex` |
+| `get_historical_vex` | `get_vex` |
+| `get_historical_chex` | `get_chex` |
+| `get_historical_levels` | `get_levels` |
+| `get_historical_exposure_summary` | `get_exposure_summary` |
+| `get_historical_narrative` | `get_narrative` |
+| `get_historical_zero_dte` | `get_zero_dte` |
+| `get_historical_max_pain` | `get_max_pain` |
+| `get_historical_volatility` | `get_volatility` |
+| `get_historical_advanced_volatility` | `get_advanced_volatility` |
+| `get_historical_vrp` | `get_vrp` |
+| `get_historical_surface` | `get_surface` |
+| `get_historical_stock_quote` | `get_stock_quote` |
+| `get_historical_option_quote` | `get_option_quote` |
+| `get_historical_stock_summary` | `get_stock_summary` |
+| `get_historical_coverage` | List symbols backfilled with coverage windows and gaps — call first to check whether (symbol, date range) is queryable |
 
-See the full [Screener spec](https://flashalpha.com/docs/lab-api-screener) and
-[cookbook](https://flashalpha.com/docs/lab-api-screener-cookbook) for all fields,
-examples, and recipes.
-
----
-
-### GetStockQuote
-
-Retrieves the current market price and basic quote data for a stock.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Stock symbol (e.g., `SPY`, `AAPL`) |
-
-Returns: bid, ask, last price, volume, change, change percent.
-
----
-
-### GetTickers
-
-Searches for tickers matching a query string.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `query` | string | yes | Name or partial symbol to search |
-
-Returns: list of matching tickers with symbol, name, and exchange.
-
----
-
-### GetOptionChain
-
-Fetches the full option chain for a ticker, including all available expiry dates and strikes.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-| `expiry` | string | no | Filter to a specific expiry date (YYYY-MM-DD) |
-| `strike` | number | no | Filter to a specific strike price |
-| `optionType` | string | no | `call`, `put`, or omit for both |
-
-Returns: strikes, expiries, bid, ask, mid, implied volatility, open interest, volume, delta, gamma for each contract.
+**Note:** The multi-factor options screener is REST-only at `POST /v1/screener` — no MCP tool wraps it (yet). The historical replay tools cover analytics only; for raw historical tick data use the historical REST endpoints directly.
 
 ---
 
-### GetAccount
+## MCP Resources (5)
 
-Returns account details and the active subscription plan.
+The server publishes 5 markdown documents as MCP Resources so connected clients can pull the full reference into context with one call instead of relying on tool descriptions:
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-
-Returns: plan name, rate limits, enabled tools, account status.
-
----
-
-### GetGex
-
-Returns gamma exposure (GEX) by strike and expiry date. GEX measures the estimated dollar gamma that market makers must hedge, which influences intraday volatility and price pinning behavior.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-| `expiry` | string | no | Filter to a specific expiry (YYYY-MM-DD) |
-
-Returns: GEX values by strike, aggregate GEX, flip point (zero gamma level), call wall, put wall.
+| URI | Title |
+|---|---|
+| `flashalpha://docs/api` | Live API reference (every REST endpoint at api.flashalpha.com) |
+| `flashalpha://docs/historical` | Historical replay reference |
+| `flashalpha://docs/mcp` | This document |
+| `flashalpha://docs/screener` | Live screener spec (filter DSL, sorts, formulas) |
+| `flashalpha://docs/screener-fields` | Screener field taxonomy |
 
 ---
 
-### GetDex
+## MCP Prompts (4)
 
-Returns delta exposure (DEX) aggregated across all strikes and expiries. DEX represents the net delta that dealers carry and must hedge directionally.
+Canonical workflow templates that surface in Claude Desktop / Cursor / Windsurf UI as one-click recipes:
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-| `expiry` | string | no | Filter to a specific expiry (YYYY-MM-DD) |
-
-Returns: aggregate DEX, DEX by strike, directional bias indicator.
-
----
-
-### GetVex
-
-Returns vanna exposure (VEX) — the second-order greek measuring how delta changes as implied volatility moves. VEX matters most around large IV events like earnings.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-| `expiry` | string | no | Filter to a specific expiry (YYYY-MM-DD) |
-
-Returns: VEX by strike, aggregate VEX, vanna-weighted exposure profile.
-
----
-
-### GetLevels
-
-Returns key price levels derived from dealer exposure: call wall, put wall, zero gamma level, and high-gamma strike clusters.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-
-Returns: call wall price, put wall price, zero gamma (flip) level, gamma-weighted support and resistance zones.
-
----
-
-### GetMaxPain
-
-Max pain analysis for a symbol — max pain strike, pain curve, OI breakdown, dealer alignment overlay (gamma flip, call/put walls), expected move, pin probability, and multi-expiry calendar.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `symbol` | string | yes | Underlying stock symbol |
-| `expiration` | string | no | Filter to a single expiry (YYYY-MM-DD). Omit for full-chain analysis. |
-
-Returns: `{max_pain_strike, distance, signal, pain_curve, oi_by_strike, dealer_alignment, regime, expected_move, pin_probability, max_pain_by_expiration}`.
-
----
-
-### GetExposureSummary
-
-Returns an aggregate summary of all exposure metrics — GEX, DEX, VEX, and charm exposure (CHEX) — in a single call.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-
-Returns: combined GEX, DEX, VEX, and CHEX values with directional and volatility regime interpretation.
-
----
-
-### GetNarrative
-
-Returns a natural language narrative summarizing current dealer positioning and what it implies for near-term price action.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-
-Returns: text narrative describing the exposure regime, key levels, and implied volatility dynamics.
-
----
-
-### GetVolatility
-
-Returns implied volatility surface data, term structure, and skew for a ticker.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-| `expiry` | string | no | Filter to a specific expiry (YYYY-MM-DD) |
-
-Returns: IV by strike and expiry, ATM IV, 25-delta skew, term structure, realized vs. implied spread.
-
----
-
-### GetStockSummary
-
-Returns a combined summary of current price, key greeks, and exposure metrics for a ticker in a single response.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-
-Returns: price, ATM IV, GEX, DEX, VEX, CHEX, key levels, and a short positioning narrative.
-
----
-
-### CalculateGreeks
-
-Computes Black-Scholes greeks for a specified option contract given market inputs.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-| `strike` | number | yes | Strike price |
-| `expiry` | string | yes | Expiry date (YYYY-MM-DD) |
-| `optionType` | string | yes | `call` or `put` |
-| `spotPrice` | number | no | Spot price override (uses live price if omitted) |
-| `volatility` | number | no | IV override as decimal (e.g., `0.25` for 25%) |
-| `riskFreeRate` | number | no | Risk-free rate as decimal (defaults to current T-bill rate) |
-
-Returns: delta, gamma, theta (per day), vega, rho, price (theoretical).
-
----
-
-### SolveIV
-
-Solves implied volatility from an observed market price using numerical inversion of the Black-Scholes formula.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | string | yes | Your FlashAlpha API key |
-| `ticker` | string | yes | Underlying stock symbol |
-| `strike` | number | yes | Strike price |
-| `expiry` | string | yes | Expiry date (YYYY-MM-DD) |
-| `optionType` | string | yes | `call` or `put` |
-| `optionPrice` | number | yes | Observed market price of the option |
-| `spotPrice` | number | no | Spot price override (uses live price if omitted) |
-| `riskFreeRate` | number | no | Risk-free rate as decimal |
-
-Returns: implied volatility as a decimal, convergence status, number of iterations.
+| Prompt | Description |
+|---|---|
+| `analyze_exposure(symbol)` | Full dealer-positioning walkthrough — gamma regime, key levels, hedging pressure, 0DTE contribution |
+| `vrp_regime_check(symbol)` | VRP percentile, IV-vs-RV richness, strategy scoring conditioned on the gamma regime |
+| `historical_comparison(symbol, reference_date)` | Side-by-side current vs past date, with VIX-context sanity check |
+| `zero_dte_brief(symbol)` | Pre-session 0DTE brief — pin risk, expected move, gamma acceleration, ±0.5% hedging tilts |
 
 ---
 
 ## Example Prompts
 
-Once connected, you can ask your AI assistant questions like these:
+Once connected, ask your AI assistant questions like:
 
-1. **"Screen my universe for harvestable VRP setups with harvest score above 65."**
-2. **"Find negative-gamma names where dealer flow risk is above 50, sorted by risk."**
-3. **"Show stocks trading in contango with VRP above 3% and atm_iv over 20."**
-4. **"Rank symbols by IV premium over realized vol (atm_iv - rv_20d), top 10."**
-5. "What is the current gamma exposure for SPY?"
-6. "Where is the zero gamma level for QQQ today?"
-7. "Show me the call wall and put wall for AAPL."
-8. "What does dealer positioning look like for SPY right now?"
-9. "Calculate the delta and gamma for the SPY 540 call expiring this Friday."
-10. "What is the implied volatility for TSLA's at-the-money options?"
-11. "Give me a narrative of current SPY options market structure."
-12. "What is the vanna exposure for NDX ahead of FOMC?"
-13. "Solve the implied volatility for an NVDA 900 put trading at $12.50 with spot at $875."
-14. "Show me SPY's full option chain for the nearest expiry."
-15. "What is the DEX for IWM and what does it imply for direction?"
-16. "Give me an exposure summary for AMZN."
-17. "What are the key support and resistance levels for SPX based on GEX?"
-18. "How does SPY's realized volatility compare to implied volatility this week?"
+1. *"What is SPX dealer gamma positioning right now?"*
+2. *"Show me 0DTE setup for SPY today — pin risk, expected move, gamma acceleration."*
+3. *"Give me a full options picture for NVDA — IV, RV, VRP, skew, term, exposure, macro."*
+4. *"Replay SPY gamma exposure on 2020-03-16 at 14:00 ET."*
+5. *"Calculate Black-Scholes greeks for SPY 580 calls expiring next Friday at 18% IV."*
+6. *"What is implied volatility for an NVDA 900 put trading at $12.50 with spot $875?"*
+7. *"Where is the gamma flip and call/put walls for QQQ today?"*
+8. *"Compare current SPX dealer positioning to 2024-04-19."*
+9. *"What's the VRP percentile for AAPL vs its 90-day distribution?"*
+10. *"Generate a 0DTE brief for SPY before the open."*
 
 ---
 
-## Rate Limits
+## Plans & Pricing
 
-| Plan | Daily Requests | Access |
-|---|---|---|
-| Free | 5 | Stock quotes, GEX/DEX/VEX/CHEX by strike, levels, BSM greeks, IV solver, tickers, options meta, surface, stock summary |
-| Basic | 100 | Everything in Free + index symbols (SPX, VIX, RUT) |
-| Growth | 2,500 | + Exposure summary, narrative, 0DTE analytics, volatility analytics, option quotes, full-chain GEX, Kelly sizing |
-| Alpha | Unlimited | + Advanced volatility (SVI, variance surfaces, arbitrage detection, greeks surfaces, variance swap), VRP analytics |
-| Enterprise | Unlimited | Full access + admin endpoints |
+Four tiers. Annual saves 20% and locks the price for 12 months.
 
----
+| Plan | Monthly | Annual (per month) | Annual total | Daily quota | Freshness |
+|---|---|---|---|---|---|
+| **Free** | $0 | — | — | 5 / day | 15-minute |
+| **Basic** | $79/mo | $63/mo | $756/yr | 100 / day | 15-second |
+| **Growth** | $299/mo | $239/mo | $2,868/yr | 2,500 / day | 15-second |
+| **Alpha** | $1,499/mo | $1,199/mo | $14,388/yr | Unlimited | No cache (real-time) |
 
-## Plans & Tool Access
+### What unlocks at each tier
 
-| Tool | Free | Basic | Growth | Alpha |
-|---|---|---|---|---|
-| RunScreener | no | no | yes (10 symbols, 10 rows) | yes (~250 symbols, 50 rows, formulas) |
-| GetMaxPain | no | no | yes | yes |
-| GetStockQuote | yes | yes | yes | yes |
-| GetTickers | yes | yes | yes | yes |
-| GetOptionChain | yes | yes | yes | yes |
-| GetAccount | yes | yes | yes | yes |
-| CalculateGreeks | yes | yes | yes | yes |
-| SolveIV | yes | yes | yes | yes |
-| GetGex | yes | yes | yes | yes |
-| GetDex | yes | yes | yes | yes |
-| GetVex | yes | yes | yes | yes |
-| GetLevels | yes | yes | yes | yes |
-| GetStockSummary | cached | cached | yes | yes |
-| GetExposureSummary | no | no | yes | yes |
-| GetNarrative | no | no | yes | yes |
-| GetVolatility | no | no | yes | yes |
+| Capability | Free | Basic | Growth | Alpha |
+|---|:-:|:-:|:-:|:-:|
+| Single-stock GEX (single expiry), call/put walls, gamma flip | ✓ | ✓ | ✓ | ✓ |
+| BSM greeks, IV solver, stock quotes | ✓ | ✓ | ✓ | ✓ |
+| ETFs / indexes (SPY, QQQ, IWM, SPX) | — | ✓ | ✓ | ✓ |
+| DEX / VEX / CHEX, max pain, Market Overview | — | ✓ | ✓ | ✓ |
+| Full-chain GEX, 0DTE analytics, option quotes, volatility analytics, AI narrative, Kelly criterion | — | — | ✓ | ✓ |
+| Live Screener — 20-symbol Tier 1 universe | — | — | ✓ | ✓ |
+| Live Screener — full ~250-symbol universe (REST) | — | — | — | ✓ |
+| Advanced volatility (SVI, variance surfaces, arbitrage detection, higher-order greeks surfaces) | — | — | — | ✓ |
+| VRP analytics + history | — | — | — | ✓ |
+| Historical API — minute-resolution replay since 2018-04-16 | — | — | — | ✓ |
+| 99.9% uptime SLA | — | — | — | ✓ |
+
+Tier gating is enforced server-side per tool. Callers hitting a tool above their tier receive a 403 with the required plan in the response body. Current pricing: [flashalpha.com/pricing](https://flashalpha.com/pricing).
 
 ---
 
@@ -460,12 +284,16 @@ Once connected, you can ask your AI assistant questions like these:
 | Java | Maven Central | [flashalpha-java](https://github.com/FlashAlpha-lab/flashalpha-java) |
 | Go | `go get github.com/FlashAlpha-lab/flashalpha-go` | [flashalpha-go](https://github.com/FlashAlpha-lab/flashalpha-go) |
 
+---
+
 ## Links
 
 - [FlashAlpha](https://flashalpha.com) — API keys, docs, pricing
 - [API Documentation](https://flashalpha.com/docs)
+- [MCP server docs (canonical)](https://flashalpha.com/docs/mcp)
+- [llms.txt](https://flashalpha.com/llms.txt) — machine-readable index for LLMs
 - [Examples](https://github.com/FlashAlpha-lab/flashalpha-examples) — runnable tutorials
-- [GEX Explained](https://github.com/FlashAlpha-lab/gex-explained) — gamma exposure theory and code
-- [0DTE Options Analytics](https://github.com/FlashAlpha-lab/0dte-options-analytics) — 0DTE pin risk, expected move, dealer hedging
-- [Volatility Surface Python](https://github.com/FlashAlpha-lab/volatility-surface-python) — SVI calibration, variance swap, skew analysis
-- [Awesome Options Analytics](https://github.com/FlashAlpha-lab/awesome-options-analytics) — curated resource list
+- [GEX Explained](https://github.com/FlashAlpha-lab/gex-explained)
+- [0DTE Options Analytics](https://github.com/FlashAlpha-lab/0dte-options-analytics)
+- [Volatility Surface Python](https://github.com/FlashAlpha-lab/volatility-surface-python)
+- [Awesome Options Analytics](https://github.com/FlashAlpha-lab/awesome-options-analytics)
