@@ -24,6 +24,22 @@ Two endpoints, identical tool catalog, different authentication:
 - **OAuth discovery:** [`https://lab.flashalpha.com/.well-known/oauth-protected-resource`](https://lab.flashalpha.com/.well-known/oauth-protected-resource) (RFC 9728)
 - **Authorization server:** `https://flashalpha.com/oauth`
 
+### Persona-scoped endpoints
+
+Each base endpoint also has nine **persona** variants that expose a curated subset of the catalog for a specific trading style. Same auth model — `/mcp/<persona>` takes the `apiKey` parameter, `/mcp-oauth/<persona>` uses OAuth. Point your client at a persona URL instead of the base URL to load just that toolset.
+
+| Persona | API-key URL | OAuth URL |
+|---|---|---|
+| 🧲 Gamma Exposure | `https://lab.flashalpha.com/mcp/gex` | `https://lab.flashalpha.com/mcp-oauth/gex` |
+| 🎯 Directional | `https://lab.flashalpha.com/mcp/directional` | `https://lab.flashalpha.com/mcp-oauth/directional` |
+| 💵 Premium Seller | `https://lab.flashalpha.com/mcp/premium` | `https://lab.flashalpha.com/mcp-oauth/premium` |
+| ⚖️ Spreads & Condors | `https://lab.flashalpha.com/mcp/spreads` | `https://lab.flashalpha.com/mcp-oauth/spreads` |
+| ⚡ 0DTE | `https://lab.flashalpha.com/mcp/0dte` | `https://lab.flashalpha.com/mcp-oauth/0dte` |
+| 📈 Dealer-Positioning Swing | `https://lab.flashalpha.com/mcp/swing` | `https://lab.flashalpha.com/mcp-oauth/swing` |
+| 🌊 Volatility / Relative Value | `https://lab.flashalpha.com/mcp/volarb` | `https://lab.flashalpha.com/mcp-oauth/volarb` |
+| 💻 Quant / Systematic | `https://lab.flashalpha.com/mcp/quant` | `https://lab.flashalpha.com/mcp-oauth/quant` |
+| 📅 Earnings | `https://lab.flashalpha.com/mcp/earnings` | `https://lab.flashalpha.com/mcp-oauth/earnings` |
+
 ---
 
 ## Quick Setup (self-hosted clients → `/mcp` + `apiKey`)
