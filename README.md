@@ -1,6 +1,6 @@
 # FlashAlpha MCP Server — Real-Time Options Analytics for AI Assistants
 
-Connect Claude, ChatGPT, Cursor, Windsurf, or any MCP-compatible AI assistant to live options market data. **40 tools** covering gamma exposure (GEX), delta/vanna/charm exposure, max pain, key dealer-positioning levels, IV surfaces (SVI), VRP analytics, Black-Scholes greeks, Kelly sizing, 0DTE intraday flow, plus minute-resolution **historical replay back to April 2018** for backtesting.
+Connect Claude, ChatGPT, Cursor, Windsurf, or any MCP-compatible AI assistant to live options market data. **70+ tools** covering gamma exposure (GEX), delta/vanna/charm exposure, max pain, key dealer-positioning levels, IV surfaces (SVI parameters), VRP analytics + history, expected move, volatility skew & term structure, spot-vol correlation, dispersion / index-vs-component vol arbitrage, liquidity scoring, VIX macro state, the tradeable universe, exposure sheet / term-structure / multi-symbol basket / open-interest diff, Black-Scholes greeks, Kelly sizing, real-time options & stock order flow (sweeps, blocks, dealer premium), 0DTE intraday flow (snapshot, time series, hedge flow, heatmap, strike flow), **10 actionable options-strategy signals** (flow-anomaly, expiry-positioning, 0DTE, dealer-regime, vol-carry, yield-enhancement, surface-anomaly, skew, term-structure, tail-pricing), a full **earnings analytics suite** (calendar, expected move, history, IV crush, VRP, dealer positioning, strategies, screener), multi-leg **structure P&L + greeks** calculators, a multi-factor options **screener** with field taxonomy, plus minute-resolution **historical replay back to April 2018** for backtesting.
 
 ---
 
@@ -146,46 +146,113 @@ Discovery + endpoints:
 
 ---
 
-## Tool Catalog (40 tools)
+## Tool Catalog (70+ tools)
 
 Tool names below are the **exact strings sent via `tools/call`** — snake_case, not the PascalCase C# method names. Copy verbatim.
 
-### Live tools (23)
+### Live tools
 
-#### Market Data (5)
+#### Market Data (6)
 | Tool | Description |
 |---|---|
 | `get_stock_quote` | Real-time stock quote (bid, ask, mid, last) |
 | `get_tickers` | List/search available tickers |
+| `get_symbols` | Full list of supported underlying symbols |
 | `get_option_chain` | Available expirations + strikes metadata |
-| `get_option_quote` | Live option quote: bid, ask, mid, IV, greeks, OI, volume |
+| `get_option_quote` | Live option quote: bid, ask, mid, IV, greeks, OI, volume (`expiry`, `strike`, `type`) |
 | `get_account` | Plan, daily quota, usage today, remaining calls |
 
-#### Exposure Analytics (9)
+#### Exposure Analytics (15)
 | Tool | Description |
 |---|---|
-| `get_gex` | Gamma exposure (GEX) by strike — call/put walls, gamma flip |
-| `get_dex` | Delta exposure (DEX) by strike — net dealer delta |
-| `get_vex` | Vanna exposure (VEX) by strike — dealer hedging response to vol moves |
-| `get_chex` | Charm exposure (CHEX) by strike — time-decay-driven flows |
+| `get_gex` | Gamma exposure (GEX) by strike — call/put walls, gamma flip (`expiration`, `min_oi`) |
+| `get_dex` | Delta exposure (DEX) by strike — net dealer delta (`expiration`) |
+| `get_vex` | Vanna exposure (VEX) by strike — dealer hedging response to vol moves (`expiration`) |
+| `get_chex` | Charm exposure (CHEX) by strike — time-decay-driven flows (`expiration`) |
 | `get_levels` | Gamma flip, call/put walls, max pain, highest OI strike, 0DTE magnet |
 | `get_exposure_summary` | Net GEX/DEX/VEX/CHEX, regime, hedging estimates, top strikes, 0DTE breakdown |
+| `get_exposure_sheet` | Per-strike greeks exposure sheet (GEX/DEX/VEX/CHEX side by side) with `expiration`, `min_oi` filters |
+| `get_term_structure` | Exposure term structure — net GEX/DEX/VEX/CHEX bucketed by expiry/DTE |
+| `get_exposure_basket` | Aggregate dealer exposure across a multi-symbol basket (`symbols` required, optional `weights`) |
+| `get_oi_diff` | Day-over-day open-interest change by strike — top OI builders/unwinds (`topN`) |
 | `get_narrative` | Verbal analysis: regime, levels, dealer positioning, implications |
-| `get_max_pain` | Max pain strike, pain curve, put/call OI ratio, dealer alignment, pin probability |
-| `get_zero_dte` | 0DTE analytics: intraday gamma, time-decay acceleration, pin risk, hedging pressure |
+| `get_max_pain` | Max pain strike, pain curve, put/call OI ratio, dealer alignment, pin probability (`expiration`) |
+| `get_zero_dte` | 0DTE analytics: intraday gamma, time-decay acceleration, pin risk, hedging pressure (`expiry`, `strike_range`) |
 
-#### Volatility & Pricing (9)
+#### Volatility & Pricing (19)
 | Tool | Description |
 |---|---|
 | `get_surface` | Live 50×50 implied-volatility surface grid over (tenor, log-moneyness) |
+| `get_svi_params` | SVI (stochastic-volatility-inspired) calibrated surface parameters per tenor (Alpha) |
 | `get_volatility` | ATM IV, realized vol (5/10/20/30d), VRP, 25-δ skew, term structure, GEX-by-DTE |
 | `get_advanced_volatility` | SVI parameters, forward prices, variance surface, arbitrage flags, vanna/charm/volga surfaces, variance-swap fair values (Alpha) |
-| `get_vrp` | Volatility risk premium dashboard: IV vs RV, percentiles, regime, strategy scores |
-| `get_vrp_history` | Historical VRP time series for charting + backtesting |
+| `get_expected_move` | Straddle-implied expected move (1σ) by expiry — bands, % move, breakevens (`expiry`) |
+| `get_skew_term` | Volatility skew across strikes and term structure across expiries in one call |
+| `get_spot_vol_correlation` | Realized spot-vol correlation / leverage effect for the underlying |
+| `get_realized_vol` | Realized-vol estimators (close-to-close, Parkinson, Garman-Klass, Rogers-Satchell, Yang-Zhang) at 10/20/30-day windows (Alpha) |
+| `get_volatility_forecast` | Volatility forecasts: EWMA, HAR-RV, GARCH with multi-horizon term structure (`dist` = student_t default, gaussian) (Alpha) |
+| `get_liquidity` | Options-chain liquidity score: spreads, depth, volume/OI quality |
+| `get_dispersion` | Index-vs-component dispersion / correlation vol-arbitrage (`index`, `symbols` required, `weights`, `horizon_days`) (Alpha) |
+| `get_vix_state` | VIX macro state: level, term structure, percentile, contango/backwardation regime |
+| `get_universe` | Tradeable universe ranked by liquidity/coverage (`sort`, `limit`) |
+| `get_vrp` | Volatility risk premium dashboard: IV vs RV, percentiles, regime, strategy scores (`date`) |
+| `get_vrp_history` | Historical VRP time series for charting + backtesting (`days`) |
 | `get_stock_summary` | One-call combined summary: price, IV, VRP, skew, term, exposure, macro context |
 | `calculate_greeks` | Black-Scholes greeks (Δ, Γ, Θ, ν, ρ, vanna, charm, speed, zomma, color) |
 | `solve_iv` | Solve implied volatility from market price (BSM inversion) |
 | `calculate_kelly` | Kelly criterion optimal sizing for an option trade |
+
+#### Order Flow — Options & Stocks (real-time, simulation-aware)
+| Tool | Description |
+|---|---|
+| `get_flow_summary` | Net signed options premium, call/put flow, sweep vs block breakdown (`expiry`) |
+| `get_flow_levels` | Flow-derived support/resistance and dealer hedging levels (`expiry`) |
+| `get_flow_signals` | Scored actionable flow signals — intent, structure, conviction (`minScore`, `intent`, `structure`, `windowMinutes`, `limit`, `expiry`) |
+| `get_flow_pin_risk` | Real-time pin-risk estimate from live flow + positioning (`expiry`) |
+| `get_flow_dealer_risk` | Live dealer gamma/delta risk from intraday flow (`expiry`) |
+| `get_dealer_premium` | Dealer-side options premium attribution (sold/bought) over a window (`windowMinutes`, `expiry`) |
+| `get_option_flow` | Raw recent option prints, blocks, sweeps, cumulative & history (`minSize`, `minutes`, `limit`, `expiry`) |
+| `get_stock_flow` | Raw recent stock prints, blocks, bars, cumulative & history (`resolution`, `minSize`, `minutes`, `limit`) |
+| `get_flow_scan` | Cross-symbol flow leaderboards & outliers (`n`, `limit`, `minTrades`, `windowMinutes`) |
+
+#### 0DTE Intraday Flow
+| Tool | Description |
+|---|---|
+| `get_zero_dte_flow` | 0DTE flow snapshot: live exposure + net flow direction by strike, plus intraday series, hedge flow, heatmap, and strike-flow views (`bar`, `minutes`, `side`, `metric`, `mode`) |
+
+#### Strategy Signals (10 strategies via `get_strategy`)
+One tool, parameterized by `strategy` kind, returning the uniform strategy-decision envelope (`decision`, `score`, `confidence`, `regime`, `best_structures[]`, `metrics`, `risk_flags[]`, `why[]`, `avoid_if[]`, `data_quality`).
+| `strategy` value | Description |
+|---|---|
+| `flow_anomaly` | Directional options-flow imbalance → matching short vertical spread (`expiry`) |
+| `expiry_positioning` | Dealer expiry positioning → iron-condor / butterfly candidates (`expiry`, `minOpenInterest`, `wingWidth`) |
+| `zero_dte` | 0DTE intraday setup → defined-risk spreads (`expiry`, `minOpenInterest`, `wingWidth`) |
+| `dealer_regime` | Gamma regime read (long/short gamma) → directional bias (`expiry`) |
+| `vol_carry` | Vol carry / theta harvest → short-premium structures (`targetShortDelta`, `maxWidth`, `minCredit`, ...) |
+| `yield_enhancement` | Covered-call / cash-secured-put yield (`targetDelta`, `structure`, `excludeEarningsBeforeExpiry`, ...) |
+| `surface_anomaly` | IV-surface mispricing / arbitrage candidates (`expiry`) |
+| `skew` | Skew steepness/richness → risk-reversal / ratio ideas (`expiry`) |
+| `term_structure` | Calendar / diagonal opportunities from term-structure shape |
+| `tail_pricing` | Tail-risk richness → cheap-convexity / hedge candidates (`expiry`) |
+
+#### Earnings Analytics
+| Tool | Description |
+|---|---|
+| `get_earnings` | Per-symbol earnings analytics: expected move, history, IV crush, VRP, dealer positioning, and strategies (parameterized) |
+| `get_earnings_calendar` | Upcoming earnings calendar with expected moves (`days`, `symbols`, `importance`) |
+| `get_earnings_screener` | Rank earnings names by IV-crush edge / VRP / expected move (`sort`, `limit`, `days`, `min_importance`) |
+
+#### Structures (multi-leg, pure-math)
+| Tool | Description |
+|---|---|
+| `post_structure_pnl` | Multi-leg structure P&L curve across an underlying range (`legs[]`, `minUnderlying`, `maxUnderlying`, `points`) |
+| `post_structure_greeks` | Aggregate greeks for a multi-leg structure (`legs[]` with `expiry`+`impliedVol`, `spot`, `today`, `rate`, `dividendYield`) |
+
+#### Screener
+| Tool | Description |
+|---|---|
+| `post_screener` | Multi-factor options screener: `universe`, `filters`, `formulas`, `sort`, `select`, `limit`, `offset` |
+| `get_screener_fields` | Screener field taxonomy — every filterable/selectable field and type |
 
 ### Historical replay tools (17, Alpha tier)
 
@@ -211,7 +278,7 @@ All historical tools take a required `at=YYYY-MM-DDTHH:mm:ss` parameter (ET wall
 | `get_historical_stock_summary` | `get_stock_summary` |
 | `get_historical_coverage` | List symbols backfilled with coverage windows and gaps — call first to check whether (symbol, date range) is queryable |
 
-**Note:** The multi-factor options screener is REST-only at `POST /v1/screener` — no MCP tool wraps it (yet). The historical replay tools cover analytics only; for raw historical tick data use the historical REST endpoints directly.
+**Note:** The multi-factor options screener is now exposed as the `post_screener` MCP tool (with `get_screener_fields` for the field taxonomy), in addition to `POST /v1/screener`. The historical replay tools cover analytics only; for raw historical tick data use the historical REST endpoints directly.
 
 ---
 
@@ -256,6 +323,13 @@ Once connected, ask your AI assistant questions like:
 8. *"Compare current SPX dealer positioning to 2024-04-19."*
 9. *"What's the VRP percentile for AAPL vs its 90-day distribution?"*
 10. *"Generate a 0DTE brief for SPY before the open."*
+11. *"Run the flow-anomaly strategy signal on TSLA and show me the best defined-risk structure."*
+12. *"What's the expected move for NVDA into Friday expiry, and what's IV crush looked like the last 8 earnings?"*
+13. *"Show this week's earnings calendar with expected moves, then screen for the best IV-crush short-premium setups."*
+14. *"Price the P&L curve and aggregate greeks for an SPY iron condor: short 580/590 call spread, short 560/550 put spread."*
+15. *"Give me the SPX dealer exposure sheet and term structure, plus the day-over-day OI diff."*
+16. *"What's the dispersion / index-vs-component vol-arb read on SPX against its top components?"*
+17. *"Show the VIX macro state and the dealer-premium flow on QQQ over the last 30 minutes."*
 
 ---
 

@@ -149,6 +149,45 @@ def build_tests(api_key: str) -> list[tuple[str, dict, str]]:
         ("GetStockSummary", ticker_args, f"combined summary for {TEST_TICKER}"),
         ("CalculateGreeks", greek_args, f"BS greeks for {TEST_TICKER} {TEST_STRIKE} {TEST_OPTION_TYPE}"),
         ("SolveIV", iv_args, f"solve IV for {TEST_TICKER} {TEST_STRIKE} {TEST_OPTION_TYPE} @ {TEST_OPTION_PRICE}"),
+        # --- New tool families (snake_case names match the published tool catalog) ---
+        ("get_expected_move", expiry_args, f"expected move for {TEST_TICKER}"),
+        ("get_exposure_sheet", ticker_args, f"per-strike exposure sheet for {TEST_TICKER}"),
+        ("get_term_structure", ticker_args, f"exposure term structure for {TEST_TICKER}"),
+        ("get_oi_diff", ticker_args, f"open-interest diff for {TEST_TICKER}"),
+        ("get_skew_term", ticker_args, f"skew + term structure for {TEST_TICKER}"),
+        ("get_realized_vol", ticker_args, f"realized-vol estimators for {TEST_TICKER}"),
+        (
+            "get_volatility_forecast",
+            {**ticker_args, "dist": "student_t"},
+            f"volatility forecast (EWMA/HAR/GARCH) for {TEST_TICKER}",
+        ),
+        ("get_liquidity", ticker_args, f"liquidity score for {TEST_TICKER}"),
+        ("get_vix_state", base, "VIX macro state"),
+        ("get_universe", base, "tradeable universe"),
+        ("get_vrp_history", {**ticker_args, "days": 30}, f"VRP history for {TEST_TICKER}"),
+        ("get_dealer_premium", ticker_args, f"dealer premium flow for {TEST_TICKER}"),
+        ("get_zero_dte_flow", ticker_args, f"0DTE flow snapshot for {TEST_TICKER}"),
+        (
+            "get_strategy",
+            {**ticker_args, "strategy": "flow_anomaly"},
+            f"flow-anomaly strategy signal for {TEST_TICKER}",
+        ),
+        ("get_earnings_calendar", {**base, "days": 7}, "earnings calendar (next 7 days)"),
+        (
+            "post_structure_pnl",
+            {
+                **base,
+                "legs": [
+                    {"action": "sell", "type": "call", "strike": TEST_STRIKE, "premium": 5.0, "quantity": 1},
+                    {"action": "buy", "type": "call", "strike": TEST_STRIKE + 10, "premium": 2.0, "quantity": 1},
+                ],
+                "minUnderlying": TEST_STRIKE - 30,
+                "maxUnderlying": TEST_STRIKE + 30,
+                "points": 50,
+            },
+            "structure P&L for a short call spread",
+        ),
+        ("get_screener_fields", base, "screener field taxonomy"),
     ]
 
 

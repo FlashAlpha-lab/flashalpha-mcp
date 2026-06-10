@@ -1,0 +1,92 @@
+# FlashAlpha MCP Server
+
+> Remote Model Context Protocol (MCP) server giving Claude, ChatGPT, Cursor, Windsurf, Perplexity, VS Code Copilot, and any MCP-compatible AI assistant or agent direct access to real-time and historical US equity & ETF options analytics: gamma exposure (GEX), delta/vanna/charm exposure (DEX/VEX/CHEX), dealer positioning, key levels, max pain, implied-volatility surfaces (SVI), volatility risk premium (VRP), expected move, skew & term structure, dispersion / vol arbitrage, options & stock order flow, 0DTE intraday flow, actionable strategy signals, earnings analytics, multi-leg structure P&L & greeks, a multi-factor screener, and minute-resolution historical replay back to 2018-04-16.
+
+Hosted, no install. Streamable HTTP, MCP protocol 2025-06-18. Two endpoints, identical tool catalog:
+- `https://lab.flashalpha.com/mcp` — pass `apiKey` as a tool parameter (Claude Desktop, Claude Code CLI, Cursor, Windsurf, VS Code Copilot).
+- `https://lab.flashalpha.com/mcp-oauth` — OAuth 2.1 + PKCE + Dynamic Client Registration (Claude Connector Directory, ChatGPT Apps, Perplexity custom connectors).
+
+Persona-scoped variants expose a curated subset for a trading style: `/mcp/<persona>` and `/mcp-oauth/<persona>` for `gex`, `directional`, `premium`, `spreads`, `0dte`, `swing`, `volarb`, `quant`, `earnings`.
+
+Tier gating is enforced server-side. Free / Basic / Growth / Alpha. Get a key at https://flashalpha.com.
+
+## Market data tools
+- `get_stock_quote`: real-time stock quote (bid, ask, mid, last).
+- `get_tickers`: list/search available tickers.
+- `get_symbols`: full supported underlying-symbol list.
+- `get_option_chain`: available expirations + strikes metadata.
+- `get_option_quote`: live option quote — bid, ask, mid, IV, greeks, OI, volume (`expiry`, `strike`, `type`).
+- `get_account`: plan, daily quota, usage today, remaining calls.
+
+## Exposure analytics tools
+- `get_gex`: gamma exposure by strike — call wall, put wall, gamma flip (`expiration`, `min_oi`).
+- `get_dex`: delta exposure by strike — net dealer delta (`expiration`).
+- `get_vex`: vanna exposure by strike — dealer hedging response to vol (`expiration`).
+- `get_chex`: charm exposure by strike — time-decay-driven hedging (`expiration`).
+- `get_levels`: gamma flip, call/put walls, max pain, highest-OI strike, 0DTE magnet.
+- `get_exposure_summary`: net GEX/DEX/VEX/CHEX, regime, hedging estimates, 0DTE breakdown.
+- `get_exposure_sheet`: per-strike greeks exposure sheet (`expiration`, `min_oi`).
+- `get_term_structure`: exposure term structure bucketed by expiry/DTE.
+- `get_exposure_basket`: aggregate dealer exposure across a multi-symbol basket (`symbols` required, `weights`).
+- `get_oi_diff`: day-over-day open-interest change by strike — top builders/unwinds (`topN`).
+- `get_narrative`: verbal regime / levels / dealer-positioning analysis.
+- `get_max_pain`: max-pain strike, pain curve, P/C OI ratio, pin probability (`expiration`).
+- `get_zero_dte`: 0DTE analytics — intraday gamma, time-decay acceleration, pin risk (`expiry`, `strike_range`).
+
+## Volatility, vol-arbitrage & pricing tools
+- `get_surface`: live 50×50 IV surface over (tenor, log-moneyness).
+- `get_svi_params`: calibrated SVI surface parameters per tenor (Alpha).
+- `get_volatility`: ATM IV, realized vol (5/10/20/30d), VRP, 25-delta skew, term structure.
+- `get_advanced_volatility`: SVI, forward prices, variance surface, arbitrage flags, vanna/charm/volga surfaces, variance-swap fair value (Alpha).
+- `get_expected_move`: straddle-implied expected move (1σ) by expiry (`expiry`).
+- `get_skew_term`: volatility skew across strikes + term structure across expiries.
+- `get_spot_vol_correlation`: realized spot-vol correlation / leverage effect.
+- `get_realized_vol`: realized-vol estimators (close-to-close, Parkinson, Garman-Klass, Rogers-Satchell, Yang-Zhang) at 10/20/30-day windows (Alpha).
+- `get_volatility_forecast`: volatility forecasts (EWMA, HAR-RV, GARCH; `dist` = student_t default | gaussian) with multi-horizon term structure (Alpha).
+- `get_liquidity`: options-chain liquidity score — spreads, depth, volume/OI quality.
+- `get_dispersion`: index-vs-component dispersion / correlation vol-arb (`index`, `symbols` required, `weights`, `horizon_days`; Alpha).
+- `get_vix_state`: VIX level, term structure, percentile, contango/backwardation regime.
+- `get_universe`: tradeable universe ranked by liquidity/coverage (`sort`, `limit`).
+- `get_vrp`: volatility risk premium dashboard — IV vs RV, percentiles, regime, strategy scores (`date`).
+- `get_vrp_history`: historical VRP time series (`days`).
+- `get_stock_summary`: one-call combined summary — price, IV, VRP, skew, term, exposure, macro.
+- `calculate_greeks`: Black-Scholes greeks (Δ, Γ, Θ, ν, ρ, vanna, charm, speed, zomma, color).
+- `solve_iv`: implied volatility from market price (BSM inversion).
+- `calculate_kelly`: Kelly optimal sizing for an option trade.
+
+## Order-flow tools (real-time, simulation-aware)
+- `get_flow_summary`: net signed options premium, call/put flow, sweep vs block (`expiry`).
+- `get_flow_levels`: flow-derived support/resistance & dealer hedging levels (`expiry`).
+- `get_flow_signals`: scored actionable flow signals — intent, structure, conviction.
+- `get_flow_pin_risk`: real-time pin-risk estimate.
+- `get_flow_dealer_risk`: live dealer gamma/delta risk from intraday flow.
+- `get_dealer_premium`: dealer-side options premium attribution over a window (`windowMinutes`, `expiry`).
+- `get_option_flow`: raw recent option prints, blocks, sweeps, cumulative, history.
+- `get_stock_flow`: raw recent stock prints, blocks, bars, cumulative, history (`resolution`).
+- `get_flow_scan`: cross-symbol flow leaderboards & outliers.
+
+## 0DTE intraday flow tools
+- `get_zero_dte_flow`: 0DTE snapshot (exposure + net flow direction by strike), intraday series, hedge flow, heatmap, strike-flow (`bar`, `minutes`, `side`, `metric`, `mode`).
+
+## Strategy-signal tools
+- `get_strategy`: one tool, `strategy` kind selects the model. Returns a uniform decision envelope (`decision`, `score`, `confidence`, `regime`, `best_structures[]`, `metrics`, `risk_flags[]`, `why[]`, `avoid_if[]`, `data_quality`). Strategies: `flow_anomaly`, `expiry_positioning`, `zero_dte`, `dealer_regime`, `vol_carry`, `yield_enhancement`, `surface_anomaly`, `skew`, `term_structure`, `tail_pricing`.
+
+## Earnings-analytics tools
+- `get_earnings`: per-symbol earnings analytics — expected move, history, IV crush, VRP, dealer positioning, strategies.
+- `get_earnings_calendar`: upcoming earnings calendar with expected moves (`days`, `symbols`, `importance`).
+- `get_earnings_screener`: rank earnings names by IV-crush edge / VRP / expected move (`sort`, `limit`, `days`, `min_importance`).
+
+## Structure & screener tools
+- `post_structure_pnl`: multi-leg structure P&L curve across an underlying range (`legs[]`, `minUnderlying`, `maxUnderlying`, `points`).
+- `post_structure_greeks`: aggregate greeks for a multi-leg structure (`legs[]` with `expiry`+`impliedVol`, `spot`, `today`, `rate`, `dividendYield`).
+- `post_screener`: multi-factor options screener (`universe`, `filters`, `formulas`, `sort`, `select`, `limit`, `offset`).
+- `get_screener_fields`: screener field taxonomy.
+
+## Historical replay tools (Alpha)
+All take `at=YYYY-MM-DDTHH:mm:ss` (ET) and replay the matching live analytic since 2018-04-16; response shapes identical to live: `get_historical_gex`, `get_historical_dex`, `get_historical_vex`, `get_historical_chex`, `get_historical_levels`, `get_historical_exposure_summary`, `get_historical_narrative`, `get_historical_zero_dte`, `get_historical_max_pain`, `get_historical_volatility`, `get_historical_advanced_volatility`, `get_historical_vrp`, `get_historical_surface`, `get_historical_stock_quote`, `get_historical_option_quote`, `get_historical_stock_summary`, `get_historical_coverage`.
+
+## Docs
+- [Full API reference](https://flashalpha.com/docs) — every REST endpoint, params, response shapes.
+- [MCP server docs](https://flashalpha.com/docs/mcp) — canonical setup & tool catalog.
+- [Pricing & tiers](https://flashalpha.com/pricing).
+- [SDKs](https://flashalpha.com/docs) — Python, JavaScript, .NET, Java, Go.
