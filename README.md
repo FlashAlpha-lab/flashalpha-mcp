@@ -162,7 +162,7 @@ Tool names below are the **exact strings sent via `tools/call`** — snake_case,
 | `get_option_quote` | Live option quote: bid, ask, mid, IV, greeks, OI, volume (`expiry`, `strike`, `type`) |
 | `get_account` | Plan, daily quota, usage today, remaining calls |
 
-#### Exposure Analytics (15)
+#### Exposure Analytics (13)
 | Tool | Description |
 |---|---|
 | `get_gex` | Gamma exposure (GEX) by strike — call/put walls, gamma flip (`expiration`, `min_oi`) |
@@ -205,6 +205,7 @@ Tool names below are the **exact strings sent via `tools/call`** — snake_case,
 #### Order Flow — Options & Stocks (real-time, simulation-aware)
 | Tool | Description |
 |---|---|
+| `get_flow_live` | Headline live flow bundle in one call: effective OI state, live levels, live GEX/DEX totals, pin-risk score, dealer-risk summary. `view='gex'` returns the full simulation-aware live GEX surface, `view='dex'` live DEX, `view='oi'` the raw OI simulator state |
 | `get_flow_summary` | Net signed options premium, call/put flow, sweep vs block breakdown (`expiry`) |
 | `get_flow_levels` | Flow-derived support/resistance and dealer hedging levels (`expiry`) |
 | `get_flow_signals` | Scored actionable flow signals — intent, structure, conviction (`minScore`, `intent`, `structure`, `windowMinutes`, `limit`, `expiry`) |

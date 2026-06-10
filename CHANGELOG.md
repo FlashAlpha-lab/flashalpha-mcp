@@ -12,8 +12,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - `get_realized_vol` — realized-vol estimators (close-to-close, Parkinson, Garman-Klass, Rogers-Satchell, Yang-Zhang) at 10/20/30-day windows (Alpha+).
 - `get_volatility_forecast` — volatility forecasts: EWMA, HAR-RV, and GARCH with a multi-horizon term structure (`dist` = student_t default | gaussian) (Alpha+).
 
+**Order flow**
+- `get_flow_live` — headline live flow bundle in one call (effective OI state, live levels, live GEX/DEX totals, pin-risk score, dealer-risk summary); `view='gex'` returns the simulation-aware live GEX surface, `view='dex'` live DEX, `view='oi'` the raw OI simulator state. Covers the `/v1/flow/live`, `/v1/flow/gex`, `/v1/flow/dex`, and `/v1/flow/oi` endpoints (Growth+/Alpha+).
+
 ### Synced
-- `README.md`, `llms.txt`, and `AGENTS.md` updated to list both tools.
+- `README.md`, `llms.txt`, and `AGENTS.md` updated to list the new tools.
+- Corrected the README "Exposure Analytics" section count from 15 to 13 (actual documented exposure tools).
 
 ## [1.6.0] — 2026-06-07
 

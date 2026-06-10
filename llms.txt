@@ -55,6 +55,7 @@ Tier gating is enforced server-side. Free / Basic / Growth / Alpha. Get a key at
 - `calculate_kelly`: Kelly optimal sizing for an option trade.
 
 ## Order-flow tools (real-time, simulation-aware)
+- `get_flow_live`: headline live flow bundle — effective OI state, live levels, live GEX/DEX totals, pin-risk score, dealer-risk summary; `view='gex'` live GEX surface, `view='dex'` live DEX, `view='oi'` raw OI simulator state.
 - `get_flow_summary`: net signed options premium, call/put flow, sweep vs block (`expiry`).
 - `get_flow_levels`: flow-derived support/resistance & dealer hedging levels (`expiry`).
 - `get_flow_signals`: scored actionable flow signals — intent, structure, conviction.

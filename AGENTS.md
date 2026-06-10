@@ -27,7 +27,7 @@ Guidance for AI agents and assistants (Claude, ChatGPT, Cursor, Windsurf, autono
 
 **Macro / regime context** → `get_vix_state` (VIX level, term structure, contango/backwardation) and `get_universe` (what's liquid/covered). For per-symbol tradeability before sizing a trade, check `get_liquidity` (chain spreads, depth, volume/OI quality).
 
-**Order flow / smart-money activity** → `get_flow_summary`, `get_flow_levels`, `get_flow_signals`, `get_flow_dealer_risk`, `get_dealer_premium` (dealer premium attribution), `get_option_flow` / `get_stock_flow` for raw prints/blocks/sweeps/bars, and `get_flow_scan` for cross-symbol leaderboards & outliers.
+**Order flow / smart-money activity** → `get_flow_live` (headline live bundle: effective OI state, live levels, live GEX/DEX totals, pin-risk, dealer-risk; `view='gex'`/`'dex'`/`'oi'` for the live GEX surface, live DEX, or raw OI simulator state), `get_flow_summary`, `get_flow_levels`, `get_flow_signals`, `get_flow_dealer_risk`, `get_dealer_premium` (dealer premium attribution), `get_option_flow` / `get_stock_flow` for raw prints/blocks/sweeps/bars, and `get_flow_scan` for cross-symbol leaderboards & outliers.
 
 **Actionable trade ideas / strategy selection** → `get_strategy` with the matching `strategy` kind: `flow_anomaly` (directional flow → vertical), `expiry_positioning` (condor/butterfly), `zero_dte`, `dealer_regime` (directional bias), `vol_carry` (theta harvest), `yield_enhancement` (covered call / CSP), `surface_anomaly`, `skew`, `term_structure`, `tail_pricing`. The envelope's `best_structures[]` carries ready-to-trade legs, credits, breakevens, max profit/loss.
 

@@ -165,6 +165,7 @@ def build_tests(api_key: str) -> list[tuple[str, dict, str]]:
         ("get_vix_state", base, "VIX macro state"),
         ("get_universe", base, "tradeable universe"),
         ("get_vrp_history", {**ticker_args, "days": 30}, f"VRP history for {TEST_TICKER}"),
+        ("get_flow_live", {**base, "symbol": TEST_TICKER}, f"live flow bundle for {TEST_TICKER}"),
         ("get_dealer_premium", ticker_args, f"dealer premium flow for {TEST_TICKER}"),
         ("get_zero_dte_flow", ticker_args, f"0DTE flow snapshot for {TEST_TICKER}"),
         (
