@@ -255,6 +255,20 @@ One tool, parameterized by `strategy` kind, returning the uniform strategy-decis
 | `post_screener` | Multi-factor options screener: `universe`, `filters`, `formulas`, `sort`, `select`, `limit`, `offset` |
 | `get_screener_fields` | Screener field taxonomy — every filterable/selectable field and type |
 
+### Futures (CME equity-index)
+
+FlashAlpha serves the full options-analytics stack for **CME equity-index futures** — **`ES=F`** (E-mini S&P 500) and **`NQ=F`** (E-mini Nasdaq-100). Options-on-futures are priced with **Black-76** (forward-priced) using the correct CME contract multipliers. Everything that works for an equity works for futures: gamma exposure (GEX), DEX, VEX, CHEX, key levels, max pain, the IV surface, exposure summary, narrative, and live flow.
+
+Call any live tool with the futures symbol — e.g. `get_gex` with `symbol: "ES=F"` returns gamma exposure for the E-mini S&P 500 future:
+
+```json
+{ "symbol": "ES=F" }
+```
+
+Use the `=F` suffix — bare `ES`/`NQ` are equities, not futures. In raw REST paths URL-encode the `=` as `%3D` (e.g. `GET /v1/exposure/gex/ES%3DF`); MCP tools take the plain string `"ES=F"`. Historical replay for futures is coming; live analytics are available now.
+
+---
+
 ### Historical replay tools (17, Alpha tier)
 
 All historical tools take a required `at=YYYY-MM-DDTHH:mm:ss` parameter (ET wall-clock) and replay the matching live analytic at any minute since 2018-04-16. Response shapes are identical to the live counterparts — backtesting code that parses live responses works on historical with a tool-name swap.
