@@ -1,12 +1,12 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.tdobrowolski1/flashalpha",
-  "description": "Real-time & historical options analytics: GEX, dealer positioning, greeks, SVI vol, VRP, 0DTE",
+  "description": "Real-time & historical options analytics: GEX, dealer positioning, greeks, SVI vol, VRP, 0DTE, plus live CME equity-index futures (ES, NQ)",
   "repository": {
     "url": "https://github.com/FlashAlpha-lab/flashalpha-mcp",
     "source": "github"
   },
-  "version": "1.6.2",
+  "version": "1.6.3",
   "remotes": [
     {
       "type": "streamable-http",

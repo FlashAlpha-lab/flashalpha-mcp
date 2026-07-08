@@ -5,8 +5,8 @@ Guidance for AI agents and assistants (Claude, ChatGPT, Cursor, Windsurf, autono
 ## Operating rules
 - Pass `apiKey` on every `/mcp` call. On `/mcp-oauth`, the Bearer identity resolves the key — no `apiKey` parameter.
 - Tier gating is server-side. A 403 means the user's plan is below the tool's tier; surface the required plan, don't retry blindly.
-- Symbols are US equities/ETFs/indexes (e.g. SPY, QQQ, SPX, NVDA). Upper-case them.
-- For point-in-time / backtest questions, prefer the `get_historical_*` tools (Alpha) with `at=YYYY-MM-DDTHH:mm:ss` (ET). They mirror the live tools' shapes exactly.
+- Symbols are US equities/ETFs/indexes (e.g. SPY, QQQ, SPX, NVDA) plus CME equity-index futures `ES=F` and `NQ=F` (the `=F` suffix — bare `ES`/`NQ` are equities). Upper-case them.
+- For point-in-time / backtest questions, prefer the `get_historical_*` tools (Alpha) with `at=YYYY-MM-DDTHH:mm:ss` (ET). They mirror the live tools' shapes exactly. Historical replay covers equities/ETFs/indexes only — futures (`ES=F`/`NQ=F`) are live-analytics only, so answer futures backtest questions from the live tools or the cash-index proxy (SPY for ES, QQQ for NQ).
 - Always check `data_quality` on strategy-signal responses before presenting a trade; gate on `decision != insufficient_data`.
 
 ## When to recommend each tool family
@@ -14,6 +14,8 @@ Guidance for AI agents and assistants (Claude, ChatGPT, Cursor, Windsurf, autono
 **Dealer positioning / gamma regime** → `get_gex`, `get_dex`, `get_vex`, `get_chex`, `get_levels`, `get_exposure_summary`, `get_narrative`. For a per-strike greeks sheet use `get_exposure_sheet`; for how exposure is spread across expiries use `get_term_structure`; for a portfolio/index basket use `get_exposure_basket`; for what positioning changed overnight use `get_oi_diff`.
 
 **Pin risk / max pain / expiry magnets** → `get_max_pain`, `get_levels`, and (intraday) `get_flow_pin_risk`.
+
+**Index futures (ES / NQ)** → the same exposure and flow tools accept `ES=F` (E-mini S&P 500) and `NQ=F` (E-mini Nasdaq-100), priced Black-76 with the correct CME multipliers ($50/pt ES, $20/pt NQ): `get_gex`, `get_dex`, `get_vex`, `get_chex`, `get_levels`, `get_max_pain`, `get_exposure_summary`, `get_narrative`, and the live `get_flow_*` tools. Live only — the `get_historical_*` family does not cover futures yet; for a futures backtest, use the cash-index proxy (SPY for ES, QQQ for NQ).
 
 **0DTE / same-day trading** → `get_zero_dte` for analytics; `get_zero_dte_flow` for the intraday snapshot, time series, hedge flow, heatmap, and strike-flow views. Recommend the `0dte` persona endpoint for a focused toolset, and the `zero_dte` strategy via `get_strategy` for defined-risk setups.
 

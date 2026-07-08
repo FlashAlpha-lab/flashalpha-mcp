@@ -1,6 +1,6 @@
 # FlashAlpha MCP Server
 
-> Remote Model Context Protocol (MCP) server giving Claude, ChatGPT, Cursor, Windsurf, Perplexity, VS Code Copilot, and any MCP-compatible AI assistant or agent direct access to real-time and historical US equity & ETF options analytics: gamma exposure (GEX), delta/vanna/charm exposure (DEX/VEX/CHEX), dealer positioning, key levels, max pain, implied-volatility surfaces (SVI), volatility risk premium (VRP), expected move, skew & term structure, dispersion / vol arbitrage, options & stock order flow, 0DTE intraday flow, actionable strategy signals, earnings analytics, multi-leg structure P&L & greeks, a multi-factor screener, and minute-resolution historical replay back to 2018-04-16.
+> Remote Model Context Protocol (MCP) server giving Claude, ChatGPT, Cursor, Windsurf, Perplexity, VS Code Copilot, and any MCP-compatible AI assistant or agent direct access to real-time and historical US equity, ETF & index options analytics, plus live CME equity-index futures (ES=F, NQ=F): gamma exposure (GEX), delta/vanna/charm exposure (DEX/VEX/CHEX), dealer positioning, key levels, max pain, implied-volatility surfaces (SVI), volatility risk premium (VRP), expected move, skew & term structure, dispersion / vol arbitrage, options & stock order flow, 0DTE intraday flow, actionable strategy signals, earnings analytics, multi-leg structure P&L & greeks, a multi-factor screener, and minute-resolution historical replay back to 2018-04-16.
 
 Hosted, no install. Streamable HTTP, MCP protocol 2025-06-18. Two endpoints, identical tool catalog:
 - `https://lab.flashalpha.com/mcp` — pass `apiKey` as a tool parameter (Claude Desktop, Claude Code CLI, Cursor, Windsurf, VS Code Copilot).
@@ -9,6 +9,9 @@ Hosted, no install. Streamable HTTP, MCP protocol 2025-06-18. Two endpoints, ide
 Persona-scoped variants expose a curated subset for a trading style: `/mcp/<persona>` and `/mcp-oauth/<persona>` for `gex`, `directional`, `premium`, `spreads`, `0dte`, `swing`, `volarb`, `quant`, `earnings`.
 
 Tier gating is enforced server-side. Free / Basic / Growth / Alpha. Get a key at https://flashalpha.com.
+
+## Futures (CME equity-index)
+Live options analytics for CME equity-index futures — `ES=F` (E-mini S&P 500) and `NQ=F` (E-mini Nasdaq-100). Options-on-futures are priced with Black-76 (forward-priced) using the correct CME contract multipliers ($50/pt ES, $20/pt NQ). Everything that works for an equity works for futures: `get_gex`, `get_dex`, `get_vex`, `get_chex`, `get_levels`, `get_max_pain`, `get_surface`, `get_exposure_summary`, `get_narrative`, and the live `get_flow_*` tools all accept `ES=F` / `NQ=F`. Use the `=F` suffix — bare `ES`/`NQ` are equities. Live analytics only: the `get_historical_*` replay family does not cover futures yet, so for a futures backtest use the cash-index proxy (SPY for ES, QQQ for NQ).
 
 ## Market data tools
 - `get_stock_quote`: real-time stock quote (bid, ask, mid, last).

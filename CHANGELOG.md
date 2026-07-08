@@ -4,6 +4,14 @@ All notable changes to the FlashAlpha MCP server documentation/metadata package 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.3] — 2026-07-08
+
+### Changed — futures discoverability in agent-facing metadata
+
+- `server.json` description now names live CME equity-index futures (ES, NQ), so the MCP registry listing surfaces futures.
+- `llms.txt` adds a **Futures (CME equity-index)** section: `ES=F` / `NQ=F` are accepted by the live exposure and flow tools (priced Black-76 with the correct CME multipliers), with an explicit note that the `get_historical_*` replay family does not cover futures yet — backtest via the SPY (for ES) / QQQ (for NQ) cash proxy.
+- `AGENTS.md` updates the symbol and backtest rules for `ES=F` / `NQ=F` and adds an "Index futures (ES / NQ)" tool-family entry that routes futures backtests to the cash proxy.
+
 ## [1.6.1] — 2026-06-10
 
 ### Added — new MCP tools
