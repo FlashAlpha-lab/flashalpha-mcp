@@ -1,6 +1,6 @@
 # FlashAlpha MCP Server
 
-> Remote Model Context Protocol (MCP) server giving Claude, ChatGPT, Cursor, Windsurf, Perplexity, VS Code Copilot, and any MCP-compatible AI assistant or agent direct access to real-time and historical US equity, ETF & index options analytics, plus live CME equity-index futures (ES=F, NQ=F): gamma exposure (GEX), delta/vanna/charm exposure (DEX/VEX/CHEX), dealer positioning, key levels, max pain, implied-volatility surfaces (SVI), volatility risk premium (VRP), expected move, skew & term structure, dispersion / vol arbitrage, options & stock order flow, 0DTE intraday flow, actionable strategy signals, earnings analytics, multi-leg structure P&L & greeks, a multi-factor screener, and minute-resolution historical replay back to 2018-04-16.
+> Remote Model Context Protocol (MCP) server giving Claude, ChatGPT, Cursor, Windsurf, Perplexity, VS Code Copilot, and any MCP-compatible AI assistant or agent direct access to real-time and historical US equity, ETF & index options analytics, plus live CME equity-index futures (ES=F, NQ=F): gamma exposure (GEX), delta/vanna/charm exposure (DEX/VEX/CHEX), dealer positioning, key levels, max pain, implied-volatility surfaces (SVI), volatility risk premium (VRP), expected move, skew & term structure, dispersion / vol arbitrage, options & stock order flow, 0DTE intraday flow, actionable strategy signals, earnings analytics, multi-leg structure P&L & greeks, a multi-factor screener, and minute-resolution historical replay back to 2017-01-03.
 
 Hosted, no install. Streamable HTTP, MCP protocol 2025-06-18. Two endpoints, identical tool catalog:
 - `https://lab.flashalpha.com/mcp` — pass `apiKey` as a tool parameter (Claude Desktop, Claude Code CLI, Cursor, Windsurf, VS Code Copilot).
@@ -87,7 +87,7 @@ Live options analytics for CME equity-index futures — `ES=F` (E-mini S&P 500) 
 - `get_screener_fields`: screener field taxonomy.
 
 ## Historical replay tools (Alpha)
-All take `at=YYYY-MM-DDTHH:mm:ss` (ET) and replay the matching live analytic since 2018-04-16; response shapes identical to live: `get_historical_gex`, `get_historical_dex`, `get_historical_vex`, `get_historical_chex`, `get_historical_levels`, `get_historical_exposure_summary`, `get_historical_narrative`, `get_historical_zero_dte`, `get_historical_max_pain`, `get_historical_volatility`, `get_historical_advanced_volatility`, `get_historical_vrp`, `get_historical_surface`, `get_historical_stock_quote`, `get_historical_option_quote`, `get_historical_stock_summary`, `get_historical_coverage`.
+All take `at=YYYY-MM-DDTHH:mm:ss` (ET) and replay the matching live analytic since 2017-01-03; response shapes identical to live: `get_historical_gex`, `get_historical_dex`, `get_historical_vex`, `get_historical_chex`, `get_historical_levels`, `get_historical_exposure_summary`, `get_historical_narrative`, `get_historical_zero_dte`, `get_historical_max_pain`, `get_historical_volatility`, `get_historical_advanced_volatility`, `get_historical_vrp`, `get_historical_surface`, `get_historical_stock_quote`, `get_historical_option_quote`, `get_historical_stock_summary`, `get_historical_coverage`.
 
 ## Docs
 - [Full API reference](https://flashalpha.com/docs) — every REST endpoint, params, response shapes.

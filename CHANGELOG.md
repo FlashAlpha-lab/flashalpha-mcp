@@ -89,4 +89,4 @@ Brings the documented tool catalog up to full parity with the FlashAlpha API. ~3
 
 ## [1.5.0]
 
-- Prior release: 40 live + historical-replay tools (GEX/DEX/VEX/CHEX, levels, max pain, narrative, surface, volatility, VRP, greeks, Kelly, 0DTE, historical replay back to 2018-04-16).
+- Prior release: 40 live + historical-replay tools (GEX/DEX/VEX/CHEX, levels, max pain, narrative, surface, volatility, VRP, greeks, Kelly, 0DTE, historical replay back to 2017-01-03).

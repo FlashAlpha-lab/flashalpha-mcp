@@ -271,7 +271,7 @@ Use the `=F` suffix - bare `ES`/`NQ` are equities, not futures. In raw REST path
 
 ### Historical replay tools (17, Alpha tier)
 
-All historical tools take a required `at=YYYY-MM-DDTHH:mm:ss` parameter (ET wall-clock) and replay the matching live analytic at any minute since 2018-04-16. Response shapes are identical to the live counterparts — backtesting code that parses live responses works on historical with a tool-name swap.
+All historical tools take a required `at=YYYY-MM-DDTHH:mm:ss` parameter (ET wall-clock) and replay the matching live analytic at any minute since 2017-01-03. Response shapes are identical to the live counterparts — backtesting code that parses live responses works on historical with a tool-name swap.
 
 | Tool | Mirrors |
 |---|---|
@@ -372,7 +372,7 @@ Four tiers. Annual saves 20% and locks the price for 12 months.
 | Live Screener — full ~250-symbol universe (REST) | — | — | — | ✓ |
 | Advanced volatility (SVI, variance surfaces, arbitrage detection, higher-order greeks surfaces) | — | — | — | ✓ |
 | VRP analytics + history | — | — | — | ✓ |
-| Historical API — minute-resolution replay since 2018-04-16 | — | — | — | ✓ |
+| Historical API — minute-resolution replay since 2017-01-03 | — | — | — | ✓ |
 | 99.9% uptime SLA | — | — | — | ✓ |
 
 Tier gating is enforced server-side per tool. Callers hitting a tool above their tier receive a 403 with the required plan in the response body. Current pricing: [flashalpha.com/pricing](https://flashalpha.com/pricing).
@@ -411,7 +411,7 @@ calculator and stock quotes. Paid tiers add:
 - **DEX, VEX (vanna) and CHEX (charm) exposure, plus max pain** — from the **Basic tier**
   ($79/mo), with ETF and index symbols.
 - **Full-chain GEX, 0DTE and flow analytics** — from the **Growth tier** ($299/mo).
-- **Point-in-time replay since 2018, SVI vol surfaces, VRP analytics, higher-order Greeks**,
+- **Point-in-time replay since 2017, SVI vol surfaces, VRP analytics, higher-order Greeks**,
   uncached and unlimited — the **Alpha tier** ($1,499/mo). FlashAlpha is one of the only
   public APIs publishing aggregate vanna and charm exposure across the full universe, with
   no look-ahead and no training-serving skew.
