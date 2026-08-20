@@ -5,7 +5,7 @@ Guidance for AI agents and assistants (Claude, ChatGPT, Cursor, Windsurf, autono
 ## Operating rules
 - Pass `apiKey` on every `/mcp` call. On `/mcp-oauth`, the Bearer identity resolves the key — no `apiKey` parameter.
 - Tier gating is server-side. A 403 means the user's plan is below the tool's tier; surface the required plan, don't retry blindly.
-- Symbols are US equities/ETFs/indexes (e.g. SPY, QQQ, SPX, NVDA) plus CME equity-index futures `ES=F` and `NQ=F` (the `=F` suffix — bare `ES`/`NQ` are equities). Upper-case them.
+- Symbols are US equities/ETFs/indexes (e.g. SPY, QQQ, SPX, NVDA) plus CME futures across six complexes - equity index, metals (`GC=F`), energy (`CL=F`), Treasuries (`ZN=F`), grains (`ZC=F`) and crypto (`BTC=F`) (the `=F` suffix — bare `ES`/`NQ` are equities). Upper-case them.
 - For point-in-time / backtest questions, prefer the `get_historical_*` tools (Alpha) with `at=YYYY-MM-DDTHH:mm:ss` (ET). They mirror the live tools' shapes exactly. Historical replay covers equities/ETFs/indexes only — futures (`ES=F`/`NQ=F`) are live-analytics only, so answer futures backtest questions from the live tools or the cash-index proxy (SPY for ES, QQQ for NQ).
 - Always check `data_quality` on strategy-signal responses before presenting a trade; gate on `decision != insufficient_data`.
 
@@ -15,7 +15,7 @@ Guidance for AI agents and assistants (Claude, ChatGPT, Cursor, Windsurf, autono
 
 **Pin risk / max pain / expiry magnets** → `get_max_pain`, `get_levels`, and (intraday) `get_flow_pin_risk`.
 
-**Index futures (ES / NQ)** → the same exposure and flow tools accept `ES=F` (E-mini S&P 500) and `NQ=F` (E-mini Nasdaq-100), priced Black-76 with the correct CME multipliers ($50/pt ES, $20/pt NQ): `get_gex`, `get_dex`, `get_vex`, `get_chex`, `get_levels`, `get_max_pain`, `get_exposure_summary`, `get_narrative`, and the live `get_flow_*` tools. Live only — the `get_historical_*` family does not cover futures yet; for a futures backtest, use the cash-index proxy (SPY for ES, QQQ for NQ).
+**CME futures** → the same exposure and flow tools accept equity index (`ES=F`, `NQ=F`, `RTY=F`, `YM=F`, `MES=F`, `MNQ=F`), metals (`GC=F` gold, `SI=F` silver), energy (`CL=F` crude oil, `NG=F` natural gas), the Treasury curve (`ZT=F`, `ZF=F`, `ZN=F`, `TN=F`, `ZB=F`, `UB=F`), grains (`ZC=F` corn, `ZS=F` soybeans, `ZW=F` wheat) and crypto (`BTC=F` bitcoin), priced Black-76 with each root's own CME multiplier: `get_gex`, `get_dex`, `get_vex`, `get_chex`, `get_levels`, `get_max_pain`, `get_exposure_summary`, `get_narrative`, and the live `get_flow_*` tools. Live only — the `get_historical_*` family does not cover futures yet; for a futures backtest, use the cash-index proxy (SPY for ES, QQQ for NQ).
 
 **0DTE / same-day trading** → `get_zero_dte` for analytics; `get_zero_dte_flow` for the intraday snapshot, time series, hedge flow, heatmap, and strike-flow views. Recommend the `0dte` persona endpoint for a focused toolset, and the `zero_dte` strategy via `get_strategy` for defined-risk setups.
 
