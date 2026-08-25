@@ -13,6 +13,19 @@ Tier gating is enforced server-side. Free / Basic / Growth / Alpha. Get a key at
 ## Futures (CME equity-index)
 Live options analytics for CME futures across six complexes - equity index (`ES=F`, `NQ=F`, `RTY=F`, `YM=F`, `MES=F`, `MNQ=F`), metals (`GC=F` gold, `SI=F` silver), energy (`CL=F` crude oil, `NG=F` natural gas), the Treasury curve (`ZT=F`, `ZF=F`, `ZN=F`, `TN=F`, `ZB=F`, `UB=F`), grains (`ZC=F` corn, `ZS=F` soybeans, `ZW=F` wheat) and crypto (`BTC=F` bitcoin). Options-on-futures are priced with Black-76 (forward-priced), each root carrying its own CME contract multiplier. Everything that works for an equity works for futures: `get_gex`, `get_dex`, `get_vex`, `get_chex`, `get_levels`, `get_max_pain`, `get_surface`, `get_exposure_summary`, `get_narrative`, and the live `get_flow_*` tools all accept any of these `=F` symbols. Use the `=F` suffix — bare `ES`/`NQ` are equities. Live analytics only: the `get_historical_*` replay family does not cover futures yet, so for a futures backtest use the cash-index proxy (SPY for ES, QQQ for NQ).
 
+## Data provenance
+
+Every tool result carries `data_as_of`: when each upstream feed last delivered to the node
+that answered - equity and index spot, their option chains, futures and futures options,
+the classified trade tape, settled open interest, and the macro series, each reported
+separately because they arrive over different pipes and fail independently. `null` means
+that node has not seen that feed, not that it is broken. Read each feed against its own
+cadence: settled open interest dated to the previous session's close is correct, while an
+options feed an hour behind during the regular session is not. `endpoint_version`
+identifies the deployment. Historical replay tools carry a second object, `archive_as_of`,
+in the same shape, giving the vintage of the archive rows actually replayed. Full
+reference: https://flashalpha.com/docs/lab-api-overview#response-envelope
+
 ## Market data tools
 - `get_stock_quote`: real-time stock quote (bid, ask, mid, last).
 - `get_tickers`: list/search available tickers.
