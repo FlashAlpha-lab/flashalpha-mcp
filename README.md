@@ -157,7 +157,7 @@ the deployment that produced it.
 | `node` | Which node answered | Nodes hydrate independently |
 | `equity_feed` | Equity and ETF spot quotes | seconds, during market hours |
 | `equity_options_feed` | Equity and ETF option quotes | seconds, during market hours |
-| `index_feed` | Index spot (SPX, NDX, RUT, VIX) | seconds, during market hours |
+| `index_feed` | Index spot (SPX, RUT, VIX and the other index roots) | seconds, during market hours |
 | `index_options_feed` | Index option quotes | seconds, during market hours |
 | `futures_feed` | Futures prices | seconds, during the futures session |
 | `futures_options_feed` | Futures option quotes | seconds, during the futures session |
@@ -191,7 +191,7 @@ present both with equal confidence.
 
 Historical replay tools carry a second object, `archive_as_of`, in the same shape: the
 vintage of the archive rows actually replayed for the timestamp requested. Their
-`data_as_of` is all `null`, because a replay node reads the archive and consumes no live
+every feed in `data_as_of` is `null`, because a replay node reads the archive and consumes no live
 feed.
 
 Full reference: <https://flashalpha.com/docs/lab-api-overview#response-envelope> and the
