@@ -1,6 +1,13 @@
 # FlashAlpha API Documentation
 
-Real-time options exposure analytics. Live gamma (GEX), delta (DEX), vanna (VEX), and charm (CHEX) exposure data, key levels, dealer hedging estimates, and verbal narrative analysis — all derived from live options flow.
+Real-time options exposure analytics. Live gamma (GEX), delta (DEX), vanna (VEX), and charm (CHEX) exposure data, key levels, dealer hedging estimates, and verbal narrative analysis. Exposure metrics are **structural**: computed from settled open interest with a fixed sign convention. Classified options flow is a separate, opt-in layer - the `/v1/flow/*` endpoints and `?polarity=flow` - not the basis of the default figures.
+
+> **How the analytics are defined:** the [glossary](https://flashalpha.com/docs/glossary.md)
+> defines every metric name and its formula, and the
+> [dealer-positioning methodology](https://flashalpha.com/docs/dealer-positioning.md) covers the
+> sign conventions and the two polarity models — including why the structural and flow views of
+> the same chain can disagree. Index and futures pricing specifics are in the
+> [futures methodology](https://flashalpha.com/methodology/futures).
 
 ---
 
@@ -26,7 +33,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" https://lab.flashalpha.com/v1/exposure/gex/SPY
 
 **3. Explore the response** — you'll get gamma exposure by strike with OI, volume, and day-over-day changes.
 
-That's it. Every US equity and ETF symbol is supported. Data is fetched on-demand with a 15-second cache.
+That's it. Every US equity and ETF symbol is supported. Data is fetched on-demand. The maximum age of the cached snapshot you may be served depends on your plan: 15 minutes on Free, 15 seconds on Basic and Growth, ~1 second on Alpha and Enterprise (see [plan tiers](https://flashalpha.com/docs/tiers.md)).
 
 ---
 
@@ -77,6 +84,8 @@ https://lab.flashalpha.com/v1/symbols?apiKey=YOUR_API_KEY
 - [`GET /v1/liquidity/{symbol}`](#get-v1liquiditysymbol) — Per-expiry + chain liquidity scores `Growth+`
 - [`GET /v1/volatility/skew-term/{symbol}`](#get-v1volatilityskew-termsymbol) — Skew term structure with RR / butterfly conventions `Growth+`
 - [`GET /v1/volatility/spot-vol-correlation/{symbol}`](#get-v1volatilityspot-vol-correlationsymbol) — 20d / 60d spot-vol correlation `Growth+`
+- [`GET /v1/volatility/realized/{symbol}`](#get-v1volatilityrealizedsymbol) — Range-based realized estimators (Parkinson, Garman-Klass, Rogers-Satchell, Yang-Zhang) `Alpha+`
+- [`GET /v1/volatility/forecast/{symbol}`](#get-v1volatilityforecastsymbol) — Conditional vol forecasts (EWMA, HAR-RV, GARCH) `Alpha+`
 - [`GET /v1/dispersion`](#get-v1dispersion) — Implied + realized correlation across an index basket `Alpha+`
 
 ### Macro
@@ -101,6 +110,7 @@ Simulation-aware exposure that reflects intraday position changes (not just morn
 - [`GET /v1/flow/live/{symbol}`](#get-v1flowlivesymbol) — Headline flow bundle in one call `Alpha+`
 - [`GET /v1/flow/signals/{symbol}`](#get-v1flowsignalssymbol) — Scored, classified unusual-flow feed (sweep/block, opening bias, intent) `Alpha+`
 - [`GET /v1/flow/signals/{symbol}/summary`](#get-v1flowsignalssymbolsummary) — Net bullish/bearish + opening/closing premium roll-up `Alpha+`
+- `GET /v1/flow/options/{symbol}/option-minute-history` — Per-contract (strike+right+expiry) minute buy/sell/mid classified volume; aggregate `Σ(buys − sells)` per strike for net **customer** flow. The inferred dealer inventory change is its negation, `sells − buys`, accumulating from zero at the 09:30 ET open - a change over the session, never an absolute dealer position `Alpha+`
 
 ### Raw Flow Data
 
@@ -190,6 +200,125 @@ Pure-math multi-leg utilities — no market lookup.
 
 ---
 
+## Response Envelope
+
+Every successful JSON response carries two fields, added automatically by the API rather than by
+each endpoint:
+
+| Field | Meaning |
+|-------|---------|
+| `endpoint_version` | The deployed API version that produced the response. One value across the whole surface. |
+| `data_as_of` | When each upstream market-data feed last delivered to the node that answered. |
+
+`data_as_of` is a fixed object. Every key is present on every endpoint, and a key is `null` when
+that node has not received anything on that feed since it started.
+
+```json
+{
+  "symbol": "SPY",
+  "underlying_price": 764.23,
+  "as_of": "2026-08-24T18:49:00.697Z",
+  "endpoint_version": "2026.08.25",
+  "data_as_of": {
+    "node": "fa2",
+    "equity_feed": "2026-08-24T18:49:00.512Z",
+    "equity_options_feed": "2026-08-24T18:48:58.204Z",
+    "index_feed": null,
+    "index_options_feed": null,
+    "futures_feed": null,
+    "futures_options_feed": null,
+    "flow_feed": "2026-08-24T18:49:00.220Z",
+    "oi_feed": "2026-08-21T20:00:00.000Z",
+    "macro_feed": "2026-08-24T18:42:11.000Z"
+  }
+}
+```
+
+Read that example against each feed's cadence, not against `as_of`. The request ran midday on
+Monday 2026-08-24, and `oi_feed` reports Friday's 16:00 ET close - the previous session, which is
+the newest settled open interest that exists. It is three days behind `as_of` and entirely
+correct; settled OI is published once per session, and Monday's will not exist until Monday
+settles.
+
+| Key | Feed | Expected cadence |
+|-----|------|------------------|
+| `node` | Which node answered. Nodes hydrate independently, so their feeds can differ. | - |
+| `equity_feed` | Equity and ETF spot quotes | seconds, during market hours |
+| `equity_options_feed` | Equity and ETF option quotes | seconds, during market hours |
+| `index_feed` | Index spot (SPX, NDX, RUT, VIX, ...) | seconds, during market hours |
+| `index_options_feed` | Index option quotes | seconds, during market hours |
+| `futures_feed` | Futures prices | seconds, during the futures session |
+| `futures_options_feed` | Futures option quotes | seconds, during the futures session |
+| `flow_feed` | Classified options and stock trade tape | seconds, during market hours |
+| `oi_feed` | Settled open interest | daily, dated to the prior 16:00 ET close |
+| `macro_feed` | VIX, VVIX, SKEW, MOVE, SPX and Fear and Greed | minutes. Reports its OLDEST field, so one lagging series is visible rather than hidden behind a fresh one. |
+
+### How to read it
+
+- **Check the feeds your query depends on.** A GEX call on SPY is answered from
+  `equity_feed`, `equity_options_feed` and `oi_feed`. `futures_feed` being `null` in that same
+  response says nothing about the answer.
+- **Compare against the cadence, not against the clock.** `oi_feed` at yesterday's close is
+  correct - open interest is settled data. `equity_options_feed` an hour behind during market
+  hours is not.
+- **`null` means "not seen on this node", not "broken".** A node that has never been asked for a
+  futures symbol has never opened that feed.
+- **`data_as_of` is not `as_of`.** `as_of`, where an endpoint returns it, is when the response was
+  generated or when the newest contract in it last ticked. `data_as_of` describes the feeds.
+
+### Endpoints that return an array
+
+A JSON array has nowhere to put a field, so a handful of endpoints carry the same information in
+the `X-Endpoint-Version` and `X-Data-As-Of` response headers instead, the latter as compact JSON.
+The only one on the public surface is:
+
+- `GET /optionquote/{ticker}` - when it returns multiple contracts. Narrowing to a single contract
+  (`expiry` + `type` + `strike`) returns an object, which carries `data_as_of` in the body as usual.
+
+The others are admin routes: `/v1/admin/dq/sources`, `/v1/admin/dq/summary`, `/v1/admin/dq/sweep`,
+`/v1/admin/dq/sweep-cmp`, `/v1/admin/dq/parity` and `/v1/admin/dq/parity/run`.
+
+### On the historical API
+
+`data_as_of` means the same thing everywhere: when each LIVE feed last delivered to the node that
+answered. A historical node reads the archive and has no live feeds, so **every slot there is
+`null`** - honest rather than reusing the name for something else.
+
+The archive vintage rides alongside as a second field, `archive_as_of`, in the same shape: the
+**vintage of the rows actually replayed for the `at` you asked for**. Feeds a request did not read
+are `null`.
+
+This is worth reading. An archive gap is invisible in the payload otherwise: ask for 15:59 and the
+query happily returns the 14:00 row, and the two responses are identical apart from this field. A
+live staleness can be checked against the market; a historical one cannot be checked against
+anything.
+
+```json
+"data_as_of": {
+  "node": "f3",
+  "equity_feed": null, "equity_options_feed": null,
+  "index_feed": null, "index_options_feed": null,
+  "futures_feed": null, "futures_options_feed": null,
+  "flow_feed": null, "oi_feed": null, "macro_feed": null
+},
+"archive_as_of": {
+  "node": "f3",
+  "equity_feed": "2024-03-01T19:00:00.000Z",
+  "equity_options_feed": "2024-03-01T20:59:58.000Z",
+  "index_feed": null, "index_options_feed": null,
+  "futures_feed": null, "futures_options_feed": null,
+  "flow_feed": null,
+  "oi_feed": "2024-02-29T21:00:00.000Z",
+  "macro_feed": "2024-03-01T21:00:00.000Z"
+}
+```
+
+Use it to confirm the replay landed where you asked. `as_of` tells you the timestamp resolved for
+the request; `archive_as_of.equity_options_feed` tells you how current the chain behind it actually
+was at that instant.
+
+---
+
 ## Rate Limits & Plans
 
 Every authenticated response includes rate limit headers:
@@ -206,14 +335,53 @@ Every authenticated response includes rate limit headers:
 | Plan | Daily Requests | Access |
 |------|---------------|--------|
 | Free | 5 | Stock quotes, gamma exposure by strike (GEX, levels), BSM greeks, IV solver, tickers, options meta, symbols, surface, stock summary (cached for unauthenticated, live for authenticated) |
-| Basic | 250 | Everything in Free + delta/vanna/charm exposure (DEX/VEX/CHEX) + index symbols + max pain analysis |
+| Basic | 250 | Everything in Free + delta/vanna/charm exposure (DEX/VEX/CHEX) + ETF & index symbols + max pain analysis |
 | Growth | 2,500 | + Exposure summary, narrative, history, 0DTE analytics, volatility analytics, option quotes, full-chain GEX (no expiry filter), Kelly sizing, **flow analytics** (`/v1/flow/levels`, `/pin-risk`, `/summary`, `/gex`, `/dex`, `/dealer-risk`) |
 | Alpha | Unlimited | + Advanced volatility (SVI, variance surfaces, arbitrage detection, greeks surfaces, var swap), VRP analytics (risk premium, z-score, percentile, directional VRP, term structure, GEX/vanna-conditioned regime, strategy suitability scores, dealer flow risk, macro context), SVI-smoothed IV on option quotes, **raw OI simulator state** (`/v1/flow/oi`), **flow bundle** (`/v1/flow/live`), **unusual-flow signal feed** (`/v1/flow/signals`), and raw option/stock flow data (`/v1/flow/options/*`, `/v1/flow/stocks/*`) |
 | Enterprise | Unlimited | Full access + admin endpoints |
 
-### Index Symbols
+### Index & ETF Symbols
 
 Index symbols (SPX, VIX, RUT, DJX, DJI, OEX, XSP, XEO, SPXW, MRUT, MNX, VVIX, RVX, VXST, VXEEM, GVZ, OVX, TYVIX, SRVIX, SKEW, BSZ, BVZ, TNX, TYX, FVX, IRX, MXEA, MXEF) require the **Basic plan or higher** on any endpoint. Free-tier requests for index symbols return `403`.
+
+ETF symbols are gated the same way: a maintained list of optionable ETFs requires the **Basic plan or higher** on any endpoint, and Free-tier requests for them return `403`. The list covers broad-market (SPY, QQQ, IWM, DIA, VTI, VOO, IVV, RSP), sector SPDRs (XLF, XLE, XLK, ...), thematic/industry (SMH, SOXX, XBI, JETS, KWEB, ...), ARK funds, international (EEM, EFA, FXI, EWZ, ...), fixed income (TLT, HYG, LQD, ...), commodities (GLD, SLV, USO, GDX, ...), real estate (VNQ), and leveraged/inverse products (TQQQ, SQQQ, UVXY, SOXL, ...). The authoritative list is `EndpointAccessMiddleware.EtfSymbols`. Individual equities (AAPL, TSLA, NVDA, ...) remain available on Free.
+
+### Futures Symbols
+
+CME futures are served and queried under the Yahoo continuous-front **`=F` suffix**, so `/v1/exposure/gex/ES=F` returns the E-mini S&P 500 future (priced Black-76 on the forward, with the per-root contract multiplier). The bare root is **not** the future — `ES` is the Eversource Energy equity (BSM, ×100), and the suffix keeps the two from ever colliding.
+
+Coverage spans six complexes. These roots carry the **full options-analytics stack** — GEX, DEX, VEX, CHEX, levels, max pain, surface, exposure summary, narrative and live flow:
+
+| Complex | Serving symbols | Multiplier |
+|---|---|---|
+| Equity index | `ES=F` / `MES=F` | 50 / 5 |
+| | `NQ=F` / `MNQ=F` | 20 / 2 |
+| | `RTY=F` | 50 |
+| | `YM=F` | 5 |
+| Metals | `GC=F` gold | 100 (troy oz) |
+| | `SI=F` silver | 5,000 (troy oz) |
+| Energy | `CL=F` crude oil | 1,000 (bbl) |
+| | `NG=F` natural gas | 10,000 (MMBtu) |
+| Treasuries | `ZT=F` 2-year | 2,000 |
+| | `ZF=F` 5-year | 1,000 |
+| | `ZN=F` 10-year | 1,000 |
+| | `TN=F` ultra 10-year | 1,000 |
+| | `ZB=F` bond | 1,000 |
+| | `UB=F` ultra bond | 1,000 |
+| Grains | `ZC=F` corn | 50 |
+| | `ZS=F` soybeans | 50 |
+| | `ZW=F` wheat | 50 |
+| Crypto | `BTC=F` bitcoin | 5 (BTC) |
+
+**Quote conventions.** Treasuries are quoted in **points of par** and grains in **cents**, so the multiplier is the contract size divided by 100 — `ZN=F` at 108.625 is 108.625% of $100,000 face, i.e. $108,625, not $10.9M. Reading the raw contract size instead puts notional and dollar gamma out by two orders of magnitude.
+
+**Access.** Futures symbols require the **Growth plan or higher** on every endpoint. The gate is a symbol-class check, so it applies to any route that names a futures symbol; anonymous callers are evaluated as Free and receive `403 tier_restricted`.
+
+**Priced but no options analytics.** These roots resolve for quotes, pricing and multiplier purposes, but options-analytics endpoints return an empty or unusable chain, so they are not part of the coverage above: the micro Russell (`M2K=F`) and micro Dow (`MYM=F`), which have **no listed options** at all; copper (`HG=F`), platinum (`PL=F`) and palladium (`PA=F`); Brent (`BZ=F`), RBOB (`RB=F`) and heating oil (`HO=F`); the FX complex (`6E=F`, `6B=F`, `6A=F`, `6C=F`, `6S=F`, `6N=F`, `6J=F`); soybean oil (`ZL=F`) and soybean meal (`ZM=F`); and ether (`ETH=F`, `MET=F`) and micro bitcoin (`MBT=F`).
+
+A bare futures root with no equity namesake (`NQ`, `RTY`, `YM`, the micros) resolves as an equity and returns `404` (no such equity exists). Use the `=F` form for futures.
+
+Historical replay (`/v1/historical/*`) does not yet cover futures; live analytics are available now.
 
 ### 0DTE Access
 
@@ -491,7 +659,7 @@ curl "https://lab.flashalpha.com/v1/stock/SPY/summary"
 | `exposure.call_wall` / `put_wall` | Strikes with highest call/put GEX concentration |
 | `exposure.max_pain` | Strike where total option holder loss is maximized |
 | `exposure.highest_oi_strike` | Strike with highest total open interest |
-| `exposure.regime` | `positive_gamma` or `negative_gamma` based on spot vs gamma flip |
+| `exposure.regime` | `positive_gamma` or `negative_gamma` based on spot vs gamma flip — not the sign of `net_gex`. See [Gamma regime vs net GEX](https://flashalpha.com/docs/glossary.md). |
 | `exposure.interpretation` | Verbal descriptions of gamma regime, vanna, and charm effects |
 | `exposure.hedging_estimate` | Estimated dealer hedging flow (shares + notional) for ±1% spot moves |
 | `exposure.zero_dte` | 0DTE contribution to total GEX (net GEX, % of total, expiration date) |
@@ -521,6 +689,28 @@ curl "https://lab.flashalpha.com/v1/stock/SPY/summary"
 - IV term structure filters out slices with IV < 5% or > 200% to exclude bad SVI fits
 
 ---
+
+## Exposure units
+
+The four exposure greeks are **not** expressed on a common basis. Compare each against its
+own history, never against the others in the same payload.
+
+| Field | Formula | Unit |
+|-------|---------|------|
+| `net_gex` / `call_gex` / `put_gex` | `gamma x OI x multiplier x spot^2 x 0.01` | Dollars of dealer delta to hedge **per 1% move in spot**. Calls positive, puts negated |
+| `net_dex` / `call_dex` / `put_dex` | `delta x OI x multiplier x spot` | Dollars of **delta notional**. No per-move normalisation, so this is routinely 3-4 orders of magnitude larger than `net_gex` on the same chain. That is the definition, not a scaling error |
+| `net_vex` / `call_vex` / `put_vex` | `vanna x OI x multiplier x spot` | Dollars of delta **per 1.00 change in volatility** (i.e. per 100 vol points), not per vol point. Divide by 100 to read it per vol point |
+| `net_chex` / `call_chex` / `put_chex` | `charm x OI x multiplier` | Delta drift per day from time decay |
+
+`multiplier` is 100 for equities and ETFs, and the contract multiplier for futures roots.
+
+Two consequences worth stating plainly, because they surprise people:
+
+- **`net_dex` dwarfing `net_gex` in the same response is expected.** A chain with `net_gex`
+  of -3.6e8 can legitimately carry `net_dex` of +2.0e12.
+- **`net_vex` is per 1.00 vol, not per vol point.** This differs from `vega`, which the
+  greeks endpoints report per 1 vol point. The two conventions are inconsistent with each
+  other; `net_vex` is kept as-is because customers backtest against the published series.
 
 ## `GET /v1/exposure/gex/{symbol}`
 
@@ -768,7 +958,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 
 | Field | Description |
 |-------|-------------|
-| `regime` | `positive_gamma`, `negative_gamma`, or `undetermined` |
+| `regime` | `positive_gamma` when `spot >= gamma_flip`, `negative_gamma` when below, `undetermined` when no significant flip exists. Derived from spot vs the flip — **not** from the sign of `net_gex`, so the two can legitimately disagree. See [Gamma regime vs net GEX](https://flashalpha.com/docs/glossary.md). |
 | `hedging_estimate` | Estimated dealer hedging flow if spot moves +/-1% |
 | `zero_dte` | Same-day expiration contribution to total GEX |
 
@@ -814,7 +1004,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 
 | Field | Description |
 |-------|-------------|
-| `gamma_flip` | Price where net GEX crosses zero — above = positive gamma, below = negative |
+| `gamma_flip` | Price where the cumulative net-GEX profile crosses zero — above = positive gamma, below = negative. This level, not the sign of `net_gex`, determines `regime`. See [Gamma regime vs net GEX](https://flashalpha.com/docs/glossary.md). |
 | `call_wall` | Strike with highest call GEX — acts as resistance |
 | `put_wall` | Strike with highest put GEX — acts as support |
 | `max_positive_gamma` | Strike with highest positive net GEX |
@@ -1071,7 +1261,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 |---------|-------------|
 | `time_to_close_hours` | Hours until 4:00 PM ET. The single most important 0DTE context variable. |
 | `time_to_close_pct` | Percentage of trading day elapsed (0=open, 100=close) |
-| `regime` | 0DTE-specific gamma regime (separate from full-chain flip) |
+| `regime` | 0DTE-specific gamma regime: `spot` vs a `gamma_flip` computed on the **0DTE-only** chain, so it can legitimately differ from the full-chain `regime` for the same symbol at the same moment. Like elsewhere, it is not derived from the sign of `net_gex`. See [Gamma regime vs net GEX](https://flashalpha.com/docs/glossary.md). |
 | `regime.distance_to_flip_dollars` | `|spot − gamma_flip|` in dollars |
 | `regime.distance_to_flip_sigmas` | Distance to flip in remaining-time 1σ during the session (uses ATM IV × √t_remain). Falls back to full-day 1σ when the market is closed. <1.0 = flip is well within a 1σ move |
 | `exposures.pct_of_total_gex` | 0DTE GEX as % of full-chain GEX. >50% = 0DTE dominates intraday |
@@ -1111,9 +1301,9 @@ Inside `strikes[]`, each entry exposes:
 | `strike` | Strike price |
 | `distance_from_spot_pct` | Signed % from spot (positive = above) |
 | `call_symbol` / `put_symbol` | OCC-style contract key (e.g. `SPY-260319-C-590`) — usable as a quote lookup |
-| `call_gex` / `put_gex` / `net_gex` | Per-strike gamma exposure |
-| `call_dex` / `put_dex` / `net_dex` | Per-strike delta exposure |
-| `net_vex` / `net_chex` | Per-strike vanna and charm exposure |
+| `call_gex` / `put_gex` / `net_gex` | Per-strike gamma exposure, $ per 1% move ([units](#exposure-units)) |
+| `call_dex` / `put_dex` / `net_dex` | Per-strike delta exposure, $ notional — orders larger than `net_gex` by definition ([units](#exposure-units)) |
+| `net_vex` / `net_chex` | Per-strike vanna and charm exposure; `net_vex` is per 1.00 vol, not per vol point ([units](#exposure-units)) |
 | `call_oi` / `put_oi` / `call_volume` / `put_volume` | Open interest and volume by side |
 | `gex_share_pct` / `oi_share_pct` / `volume_share_pct` | Share of the 0DTE chain total at this strike |
 | `call_iv` / `put_iv` / `call_delta` / `put_delta` / `call_gamma` / `put_gamma` / `call_theta` / `put_theta` | Greeks |
@@ -1220,7 +1410,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 |---|---|
 | `is_opex` | True when `expiration` is the holiday-adjusted monthly OPEX (3rd Friday, shifted to Thursday when Friday is a US equity holiday — e.g. Juneteenth). |
 | `is_triple_witching` | True when `is_opex` AND month ∈ {Mar, Jun, Sep, Dec}. |
-| `totals.net_dag` | Σ over strikes of DAG = `|delta| × gamma × OI × 100 × spot² × 0.01`, sign-flipped for puts per dealer-short convention. |
+| `totals.net_dag` | Σ over strikes of DAG = `|delta| × gamma × OI × multiplier × spot² × 0.01` (multiplier is 100 for equities and index options, per-root for futures), sign-flipped for puts per dealer-short convention. |
 | `lis` | Strike with the largest `|d²(net_gex)/dK²|` using a non-uniform-spaced central second difference. `null` when the chain has <3 strikes or every second-difference is zero. `magnitude` is currently always `1.0` (field reserved for future relative-magnitude scoring — the strike itself is the load-bearing output today). |
 | `peaks[]` | Local maxima of `|net_gex|` whose `strength ≥ 0.1` (fraction of max `|net_gex|` in the chain). `side`: `call_wall` when `net_gex ≥ 0`, otherwise `put_wall`. |
 | `strikes[].dag` | Per-strike DAG aggregated across calls + puts at that strike. |
@@ -1362,7 +1552,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 | `aggregate.net_*` | `Σ wᵢ × net_{greek}_i` after weight renormalisation. |
 | `constituents[].weight` | Renormalised weight applied to this symbol (sums to 1 across the response). |
 | `constituents[].contribution_pct` | `|wᵢ × net_gex_i| / Σ |wⱼ × net_gex_j|`, expressed 0-100. Uses **weighted** GEX (not raw `|net_gex|`) so a tiny-weight, large-GEX symbol doesn't dominate the display when its influence on the aggregate is small. |
-| `constituents[].regime` | `positive_gamma` when `net_gex ≥ 0`, else `negative_gamma`. |
+| `constituents[].regime` | `positive_gamma` when `net_gex ≥ 0`, else `negative_gamma`. **Note:** this is the sign of net GEX, which differs from the per-symbol endpoints — those key `regime` off spot vs `gamma_flip`. A basket has no single spot to compare a flip against, so the flip-based definition does not apply here. See [Gamma regime vs net GEX](https://flashalpha.com/docs/glossary.md). |
 
 ### Errors
 
@@ -1526,6 +1716,185 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 
 - The math is identical to the `skew_profiles[]` block returned by `/v1/volatility/{symbol}`; this endpoint just projects to a flatter term-structure shape and adds the `risk_reversal_25d` / `butterfly_25d` aliases.
 - Expirations that don't have contracts close enough to the ±25Δ / ±10Δ targets to populate the wing IVs are dropped silently.
+
+---
+
+## `GET /v1/volatility/realized/{symbol}`
+
+Range-based realized (historical) volatility estimators over 10/20/30-day
+windows. Range estimators exploit the daily high/low/open/close and are 5–8×
+more statistically efficient than close-to-close. Price history is sourced from
+the historical replay archive — coverage is limited to ramped symbols.
+
+**Requires Alpha plan or higher.**
+
+### Parameters
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `symbol` | path | yes | Underlying symbol |
+
+### Example
+
+```bash
+curl -H "X-Api-Key: YOUR_API_KEY" \
+  "https://lab.flashalpha.com/v1/volatility/realized/AAPL"
+```
+
+### Response `200`
+
+```json
+{
+  "symbol": "AAPL",
+  "as_of": "2026-06-08T15:30:00Z",
+  "underlying_price": 201.50,
+  "estimators": {
+    "close_to_close":  { "rv10": 18.40, "rv20": 21.20, "rv30": 22.70 },
+    "parkinson":       { "rv10": 17.10, "rv20": 19.80, "rv30": 20.40 },
+    "garman_klass":    { "rv10": 16.90, "rv20": 19.50, "rv30": 20.10 },
+    "rogers_satchell": { "rv10": 17.30, "rv20": 20.10, "rv30": 20.60 },
+    "yang_zhang":      { "rv10": 17.00, "rv20": 19.70, "rv30": 20.30 }
+  }
+}
+```
+
+### Response Fields
+
+| Field | Definition |
+|---|---|
+| `underlying_price` | Most-recent daily close from the archive. |
+| `estimators.*.rv10` / `rv20` / `rv30` | Annualized realized volatility (percent) over a 10/20/30-bar window, or `null` (see thresholds below). |
+
+Each estimator produces a **daily variance** over `N` bars in the window; every
+window value is then annualized as:
+
+```
+rv = 100 · sqrt(252 · variance)
+```
+
+Daily-variance formulas (`O,H,L,C` = open/high/low/close per bar; `ln` = natural log):
+
+| Estimator | Daily variance |
+|---|---|
+| `close_to_close` | sample variance of log-returns `ln(Cᵢ/Cᵢ₋₁)` (denominator `N−1`) |
+| `parkinson` | `1 / (4·N·ln(2)) · Σ ln(Hᵢ/Lᵢ)²` |
+| `garman_klass` | `1/N · Σ [ 0.5·ln(Hᵢ/Lᵢ)² − (2·ln(2)−1)·ln(Cᵢ/Oᵢ)² ]` |
+| `rogers_satchell` | `1/N · Σ [ ln(Hᵢ/Cᵢ)·ln(Hᵢ/Oᵢ) + ln(Lᵢ/Cᵢ)·ln(Lᵢ/Oᵢ) ]` |
+| `yang_zhang` | `σ²ₒ + k·σ²_c + (1−k)·σ²_RS` |
+
+For Yang-Zhang: `σ²ₒ` is the overnight-return variance (`ln(Oᵢ/Cᵢ₋₁)`, mean-removed, denominator `N−1`), `σ²_c` the open-to-close variance (`ln(Cᵢ/Oᵢ)`, mean-removed, denominator `N−1`), `σ²_RS` the Rogers-Satchell variance above (denominator `N`), and `k = 0.34 / (1.34 + (N+1)/(N−1))`.
+
+### History thresholds (null vs 404)
+
+- Fewer than **11 daily bars** available → `404 insufficient_history` (11 = enough for the 10-bar window plus Yang-Zhang's prior-close seed).
+- 11+ bars but not enough for a longer window → the request succeeds (`200`) and the unavailable window(s) are `null` (e.g. 12 bars ⇒ `rv10` populated, `rv20`/`rv30` `null`).
+
+### Errors
+
+| Status | Description |
+|--------|-------------|
+| `403` | `tier_restricted` — requires Alpha plan or higher |
+| `404` | `insufficient_history` — genuine no-coverage (symbol not in the archive) or fewer than 11 daily bars |
+| `429` | `rate_limit_exceeded` — the historical archive is rate limiting; retry shortly |
+| `502` | `upstream_error` — the historical archive rejected the forwarded request (auth / other 4xx) |
+| `503` | `upstream_unavailable` — the historical archive is down or unreachable |
+
+Error responses are JSON: `{ "error": "insufficient_history", "message": "…" }`
+(tier errors additionally include `current_plan` / `required_plan`). `404` is
+reserved for genuine no-coverage / too-few-bars — upstream archive failures
+surface as `429`/`502`/`503`, never `404`. See [Authentication](#authentication)
+for `401` and [Rate Limits & Plans](#rate-limits--plans) for caller-quota `429`.
+
+---
+
+## `GET /v1/volatility/forecast/{symbol}`
+
+Conditional volatility forecasts from daily price history: **EWMA** (RiskMetrics,
+λ=0.94), **HAR-RV** (Corsi), and **GARCH(1,1)** fitted by maximum likelihood with
+selectable Gaussian or Student-t innovations. Price history is sourced from the
+historical replay archive — coverage is limited to ramped symbols.
+
+**Requires Alpha plan or higher.**
+
+### Parameters
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `symbol` | path | yes | Underlying symbol |
+| `dist` | query | no | GARCH innovation distribution: `student_t` (default) or `gaussian` |
+
+### Example
+
+```bash
+curl -H "X-Api-Key: YOUR_API_KEY" \
+  "https://lab.flashalpha.com/v1/volatility/forecast/AAPL?dist=student_t"
+```
+
+### Response `200`
+
+```json
+{
+  "symbol": "AAPL",
+  "as_of": "2026-06-08T15:30:00Z",
+  "ewma":   { "lambda": 0.94, "vol_annualized": 19.60, "next_day_forecast": 19.60 },
+  "har_rv": {
+    "vol_annualized": 20.30,
+    "components": { "daily": 18.40, "weekly": 21.20, "monthly": 22.70 },
+    "next_day_forecast": 20.10
+  },
+  "garch": {
+    "model": "garch_1_1",
+    "distribution": "student_t",
+    "params": { "omega": 0.000003, "alpha": 0.078, "beta": 0.905, "dof": 6.20 },
+    "persistence": 0.9830,
+    "long_run_vol_annualized": 21.40,
+    "half_life_days": 40.2,
+    "converged": true,
+    "forecast": [
+      { "horizon_days": 1,  "vol_annualized": 20.10 },
+      { "horizon_days": 5,  "vol_annualized": 20.60 },
+      { "horizon_days": 21, "vol_annualized": 21.00 }
+    ]
+  }
+}
+```
+
+### Response Fields
+
+| Field | Definition |
+|---|---|
+| `ewma.vol_annualized` | Current EWMA conditional vol (%); `next_day_forecast` equals it (random walk in variance). |
+| `har_rv.components` | Daily / weekly (5d) / monthly (22d) realized-vol components, annualized %. |
+| `garch.params` | Fitted ω, α, β (and `dof` for Student-t). |
+| `garch.persistence` | `α + β`. Must be `< 1` for a stationary fit. |
+| `garch.long_run_vol_annualized` | Annualized unconditional volatility: `100·sqrt(252 · ω/(1−α−β))` (the `ω/(1−α−β)` term is the unconditional daily **variance**); `null` for a non-stationary fit. |
+| `garch.half_life_days` | Half-life of a vol shock: `ln(0.5)/ln(α+β)`. |
+| `garch.converged` | `false` when the MLE fails to converge or the fit is non-stationary; `forecast` is then `null`. |
+| `garch.forecast` | Terminal conditional vol (annualized %) at 1/5/21-day horizons, reverting toward the long-run level. |
+
+All annualized vols follow `100·sqrt(252·variance)` from daily-return variance units.
+
+### Notes
+
+- With daily-only data, HAR-RV uses squared daily returns as the realized-variance proxy.
+- GARCH is fitted by maximum likelihood via a deterministic (seeded) Nelder-Mead optimizer, so results are reproducible.
+- A non-convergent or non-stationary GARCH fit is **not** an error: it returns `200` with `converged: false` and a `null` forecast. An unavailable archive symbol returns `404`, not `500`.
+
+### Errors
+
+| Status | Description |
+|--------|-------------|
+| `400` | `invalid_dist` — `dist` must be `student_t` (default) or `gaussian` |
+| `403` | `tier_restricted` — requires Alpha plan or higher |
+| `404` | `insufficient_history` — genuine no-coverage (symbol not in the archive) or fewer than 30 daily bars |
+| `429` | `rate_limit_exceeded` — the historical archive is rate limiting; retry shortly |
+| `502` | `upstream_error` — the historical archive rejected the forwarded request (auth / other 4xx) |
+| `503` | `upstream_unavailable` — the historical archive is down or unreachable |
+
+Error responses are JSON: `{ "error": "invalid_dist", "message": "…" }`. `404` is
+reserved for genuine no-coverage — upstream archive failures surface as
+`429`/`502`/`503`, never `404`. See [Authentication](#authentication) for `401`
+and [Rate Limits & Plans](#rate-limits--plans) for caller-quota `429`.
 
 ---
 
@@ -1695,6 +2064,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
   "spot_vol_correlation_60d": -0.58,
   "data_points_20d": 20,
   "data_points_60d": 60,
+  "daily_history_points": 143,
   "interpretation": "Strongly inverse — vol spikes on spot down moves (typical equity regime)."
 }
 ```
@@ -1706,6 +2076,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 | `spot_vol_correlation_20d` | `Pearson(log_returns(spot), iv_deltas)` over the last 20 daily snapshots. `null` when either series has zero variance or fewer than 20 points exist. |
 | `spot_vol_correlation_60d` | Same over the last 60. `null` when history is too short. |
 | `data_points_*` | The actual count of returns/deltas behind each correlation (matches the window). `0` when null. |
+| `daily_history_points` | Usable daily return pairs **available** for the symbol, regardless of whether either window computed. Use this to tell "still accruing history" apart from "no history at all" — `data_points_*` are `0` in both cases. 20d needs 21 pairs, 60d needs 61. |
 | `interpretation` | Label keyed off the shorter window (preferred); falls back to 60d when 20d is null. Bands: `< -0.5` strongly inverse, `< -0.2` moderately inverse, `< 0.2` decoupled, `< 0.5` mildly positive, `≥ 0.5` strongly positive. |
 
 ### Errors
@@ -1805,8 +2176,9 @@ curl https://lab.flashalpha.com/v1/universe?sort=symbol&limit=20
   "limit": 20,
   "sort": "symbol",
   "symbols": [
-    { "symbol": "AAPL", "tier": 1, "is_pre_warmed": true },
-    { "symbol": "AMD",  "tier": 1, "is_pre_warmed": true }
+    { "symbol": "AAPL", "tier": 1, "is_pre_warmed": true, "has_0dte": false },
+    { "symbol": "IWM",  "tier": 1, "is_pre_warmed": true, "has_0dte": true },
+    { "symbol": "SPY",  "tier": 1, "is_pre_warmed": true, "has_0dte": true }
   ]
 }
 ```
@@ -1820,11 +2192,13 @@ curl https://lab.flashalpha.com/v1/universe?sort=symbol&limit=20
 | `sort` | Echoes the effective sort (unknown values fall back to `tier`). |
 | `symbols[].tier` | 1 = high-traffic loop (fast refresh); 2 = remaining curated symbols. |
 | `symbols[].is_pre_warmed` | Currently always `true` — the screener loop keeps every universe member populated. |
+| `symbols[].has_0dte` | `true` when the underlying lists **same-day-expiry (0DTE) options every trading day** — currently SPX/SPXW, SPY, QQQ, **IWM**. `false` symbols still have weekly/monthly expirations; the flag is specifically about daily same-day availability. |
 
 ### Notes
 
 - Symbols outside the universe still work on any authenticated endpoint (they fetch on-demand). The universe is "guaranteed warm," not "exhaustive."
 - On Starter tier, requests for off-universe symbols 403 with `symbol_not_in_free_universe` — this endpoint lets evaluators see exactly which symbols are reachable on Free.
+- **0DTE routing without trial-and-error:** call `/v1/universe` once and filter `has_0dte == true` to get the full daily-expiry basket up front, instead of probing `/v1/exposure/zero-dte/{symbol}` per symbol and inferring exclusion from the `no_zero_dte` flag. IWM has carried every-weekday 0DTE since Nov 2023, so it is in the basket.
 
 ---
 
@@ -1949,6 +2323,7 @@ Live (simulation-aware) versions of the key dealer-defended price anchors: gamma
 |------|----|----------|-------------|
 | `symbol` | path | yes | Underlying symbol |
 | `expiry` | query | no | Filter the chain to a single expiry, `YYYY-MM-DD`. Omit to aggregate across all expiries |
+| `polarity` | query | no | `convention` (default) or `flow`. `flow` returns dealer-position-signed walls + gamma flip (see [`/v1/flow/gex`](#get-v1flowgexsymbol) for the signing model). `live_max_pain` is OI-based and unchanged. |
 
 ### Example
 
@@ -2104,13 +2479,42 @@ Full live (simulation-aware) GEX surface — same shape as `/v1/exposure/gex/` b
 |------|----|----------|-------------|
 | `symbol` | path | yes | Underlying symbol |
 | `expiry` | query | no | Filter to a single expiry, `YYYY-MM-DD`. Omit for the full-chain GEX surface. Useful for term-structure analysis when called per expiry |
+| `polarity` | query | no | `convention` (default) or `flow`. `convention` is the fixed calls-positive/puts-negative dealer-gamma model applied to settled OI - the **structural** view (unchanged). `flow` signs each strike's gamma by the dealer inventory **change** inferred from session volume classified with a Lee-Ready-style NBBO quote rule (`dealer_pos = sells − buys`), so `net_gex > 0` = session flow left dealers longer gamma = stabilising. **Not an absolute dealer book**: `dealer_pos` accumulates from zero at the 09:30 ET open, so a negative `flow` reading against a positive `convention` reading means today's tape is pushing against the structural regime, not that the regime has reversed. Alpha+ only. |
 
 ### Example
 
 ```bash
 curl -H "X-Api-Key: YOUR_API_KEY" \
   "https://lab.flashalpha.com/v1/flow/gex/SPY?expiry=2026-05-15"
+
+# Flow-signed (dealer-position) gamma for the 0DTE pin regime:
+curl -H "X-Api-Key: YOUR_API_KEY" \
+  "https://lab.flashalpha.com/v1/flow/gex/SPY?expiry=2026-05-15&polarity=flow"
 ```
+
+**`polarity=flow`** returns the same fields with dealer-position-signed values, plus a top-level `"polarity": "flow"` and per-strike `call_net_customer` / `put_net_customer` (= buys − sells) and `call_dealer_pos` / `put_dealer_pos` (= −net_customer) diagnostics. Untraded strikes contribute 0. It does not use OI for the sign, nor the `0.43` opening-fraction constant. Available live and historically via `?at=` (backtestable where the classified trade tape is covered).
+
+**Structural vs flow.** These are two independent views of the same chain, not a right and a wrong answer:
+
+| | `polarity=convention` | `polarity=flow` |
+|---|---|---|
+| Position source | Settled open interest | Session volume classified by aggressor |
+| Sign source | Fixed convention (calls +, puts −) | `dealer_pos = sells − buys` |
+| Reads as | The **structural** gamma map carried into today | What today's **tape** is doing to it |
+| Window | Prior-night OI snapshot | Cumulative from 09:30 ET, starting at zero |
+
+When the two agree, session flow is reinforcing the structural regime. When they disagree, intraday flow is pushing against it - which is information about the structure being challenged, **not** proof that the structural sign is wrong. A structural +$8bn against −$1bn of session transfer is still net long gamma.
+
+**Classification and its limits.** Trades are tagged buyer- or seller-initiated with a quote rule against the concurrent NBBO (Lee-Ready-style): prints at or near the ask are buys, at or near the bid are sells, and midpoint prints with no clear aggressor are **excluded** rather than guessed. The passive side is attributed to liquidity providers. OPRA carries no participant identity, so FlashAlpha does not - and cannot from this feed - distinguish market-maker from retail flow; "customer" throughout means "the aggressing side".
+
+**`flow_coverage`** accompanies every `polarity=flow` response so an all-zero profile is never ambiguous:
+
+| Field | Meaning |
+|-------|---------|
+| `contracts_total` | Distinct contract identities in the chain slice |
+| `contracts_with_flow` | Identities with at least one classified print this session |
+| `twin_contracts_merged` | Contracts whose flow could not be attributed to a specific OPRA root (AM/PM twins sharing an expiry - SPX third Fridays today). `0` for every ordinary symbol |
+| `flow_source_ok` | `false` only when the classified-flow source could not be **read**: unreachable, or a response that is not a valid flow envelope (wrong symbol echoed, missing contracts collection, an error payload). A response that echoes the requested symbol with an explicit empty contracts list is a quiet tape and reports `true`. A zero `live_net_gex` with `flow_source_ok: false` means *unavailable*, not *flat* |
 
 ### Response `200`
 
@@ -2325,6 +2729,7 @@ Convenience bundle for headline flow analytics. It materialises the live snapsho
 |------|----|----------|-------------|
 | `symbol` | path | yes | Underlying symbol |
 | `expiry` | query | no | Filter all sub-results in the bundle to a single expiry, `YYYY-MM-DD`. Omit for the full-chain bundle |
+| `polarity` | query | no | `convention` (default) or `flow`. `flow` re-signs only the gamma-derived fields (`live_gex`, `live_gamma_flip`, `live_call_wall`, `live_put_wall`) by dealer position and adds `"polarity": "flow"`; DEX + `flow_adjusted_dealer_risk` stay convention-signed. See [`/v1/flow/gex`](#get-v1flowgexsymbol). Live only (historical `?at=` bundle stays convention). |
 
 ### Example
 
@@ -2571,7 +2976,9 @@ Live, intraday-aware view of today's 0DTE dealer-positioning landscape. Computed
 
 ### `GET /v1/flow/zero-dte/snapshot/{symbol}` — Growth+
 
-Current live 0DTE shape for `{symbol}`. Returns the same JSON shape as `/v1/exposure/zero-dte/{symbol}` (regime, exposures, expected_move, pin_risk, hedging, decay, vol_context, flow, levels, liquidity, strikes) PLUS a `flow_direction` block:
+Current live 0DTE shape for `{symbol}`. **The classic 0DTE payload now lives under a `body` object**; the top level adds a human-readable layer (`headline`, `setup`, `probabilities`), the `flow_direction` block, identity/state fields, and a `disclaimer`. `body` is the full `ZeroDteResponse` — the same shape `/v1/exposure/zero-dte/{symbol}` returns (`time_to_close_hours`, `regime`, `expected_move`, `pin_risk`, `decay`, `hedging`, `levels`, `vol_context`, `exposures`, `liquidity`, `strikes`).
+
+> **Envelope note — shape changed.** The classic fields (`regime`, `expected_move`, `pin_risk`, `exposures`, `levels`, …) moved from the **top level into `body`**. Clients that read them at the root now see `null`/missing — read them under `body`. The degraded-state flags `no_zero_dte` / `session_closed` / `message` appear at the **top level** (wrapper state; `body` is null in those cases). `headline` / `setup` / `probabilities` / `disclaimer` are additive.
 
 ```jsonc
 {
@@ -2579,7 +2986,6 @@ Current live 0DTE shape for `{symbol}`. Returns the same JSON shape as `/v1/expo
   "underlying_price": 522.34,
   "as_of": "2026-05-27T15:30:12Z",
   "market_open": true,
-  // ...all ZeroDteResponse fields...
   "flow_direction": {
     "label": "amplifying",           // no_flow | neutral | amplifying | dampening | regime_flip
     "settled_net_gex": -1.2e9,
@@ -2589,28 +2995,45 @@ Current live 0DTE shape for `{symbol}`. Returns the same JSON shape as `/v1/expo
     "contracts_with_flow": 412,
     "total_abs_delta_contracts": 18432,
     "description": "Flow has amplified dealer GEX by 20.8% since open. ..."
+  },
+  "headline": {
+    "narrative": "…",
+    "trade_angle": "pin_trade",      // pin_trade | range_trade | breakout_risk | low_signal
+    "severity": "watch",             // info | watch | alert
+    "promoted": { "gamma_flip": 521, "magnet": 522, "pin_score": 68,
+                  "pin_probability_pct": 41.2, "regime": "…",
+                  "distance_to_flip_sigmas": 0.3, "remaining_1sd_pct": 0.42 }
+  },
+  "setup": { "primary": { /* SetupEvaluation */ }, "alternatives": [ … ],
+             "anti_setups": [ … ], "evaluator_version": "v1" },
+  "probabilities": { /* pin (heuristic_v1), range (normal_cdf_v1) */ },
+  "disclaimer": "…",
+  "body": {
+    // full ZeroDteResponse — the classic payload:
+    // time_to_close_hours, regime, expected_move, pin_risk, decay, hedging,
+    // levels, vol_context, exposures, liquidity, strikes, no_zero_dte, message
   }
 }
 ```
 
-**Degraded shapes** (all return 200 OK so clients can switch on the flags):
+**Degraded shapes** (all return 200 OK; switch on the **top-level** flags — `body` is null):
 
 - No 0DTE expiry today (most non-SPX/SPY/QQQ/IWM symbols only have 0DTE Mon/Wed/Fri):
   ```jsonc
   { "symbol": "TSLA", "no_zero_dte": true, "next_zero_dte_expiry": "2026-05-29",
-    "message": "No 0DTE expiry for TSLA today (Wednesday). Next expiry: 2026-05-29." }
+    "message": "No 0DTE expiry for TSLA today (Wednesday). Next expiry: 2026-05-29.", "body": null }
   ```
 - Market closed (weekend / holiday / outside 9:30–16:00 ET):
   ```jsonc
   { "symbol": "SPY", "session_closed": true, "last_session": "2026-05-23",
-    "message": "Market closed. Last session: 2026-05-23." }
+    "message": "Market closed. Last session: 2026-05-23.", "body": null }
   ```
 
 **Errors:**
 - 403 `tier_restricted` — caller's plan is below Growth.
 - 404 `symbol_not_found` — symbol is unknown or has no live data.
 
-The companion `/series`, `/hedge-flow`, `/heatmap`, and `/strike-flow` endpoints (documented below) are now available for intraday time-series, dealer hedge-flow, and per-strike charting. Still planned for future phases: `/historical` and `/leaderboard`. See [docs/superpowers/specs/2026-05-27-zero-dte-flow-design.md](superpowers/specs/2026-05-27-zero-dte-flow-design.md).
+The companion `/series`, `/hedge-flow`, `/heatmap`, and `/strike-flow` endpoints (documented below) are now available for intraday time-series, dealer hedge-flow, and per-strike charting. Still planned for future phases: `/historical` and `/leaderboard`.
 
 ---
 
@@ -2638,6 +3061,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
   "symbol": "SPY",
   "expiration": "2026-06-05",          // today (ET); the 0DTE expiry being sampled
   "as_of": "2026-06-05T18:45:12Z",     // server time the response was built (UTC)
+  "market_open": true,                 // true if ET-now is Mon-Fri 09:30–16:00 ET (no holiday calendar)
   "bar_size": "1m",                    // echoes the requested bar
   "bars": [
     {
@@ -2663,13 +3087,14 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 }
 ```
 
-**Degraded shapes:** there is no separate `no_zero_dte` / `session_closed` envelope here — when the symbol has no 0DTE samples today (no 0DTE expiry, session not yet started, market closed with no rows persisted, or an unknown/uncovered symbol), the endpoint still returns `200` with the normal wrapper and an **empty `bars` array**:
+**Degraded shapes:** there is no separate `no_zero_dte` / `session_closed` envelope here — when the symbol has no 0DTE samples today (no 0DTE expiry, session not yet started, market closed with no rows persisted, or an unknown/uncovered symbol), the endpoint still returns `200` with the normal wrapper and an **empty `bars` array**. Use `market_open` to distinguish "expected" empty (closed market) from "alert ops" empty (sampler outage during cash hours):
 
 ```jsonc
 {
   "symbol": "SPY",
   "expiration": "2026-06-05",
   "as_of": "2026-06-05T11:02:00Z",
+  "market_open": false,                // outside cash hours → empty bars is expected
   "bar_size": "30s",
   "bars": []                           // no samples in the requested window
 }
@@ -2706,6 +3131,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
   "symbol": "SPY",
   "expiration": "2026-06-05",          // today (ET)
   "as_of": "2026-06-05T18:45:12Z",     // UTC
+  "market_open": true,                 // true if ET-now is Mon-Fri 09:30–16:00 ET (no holiday calendar)
   "side": "calls",                     // echoes the requested side (all | calls | puts)
   "bar_size": "5m",                    // echoes the requested bar
   "bars": [
@@ -2721,13 +3147,14 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 
 For `side=all`, `bar` and `cumulative` are the sum of the call and put legs; for `calls` / `puts` they are that single leg.
 
-**Degraded shapes:** as with `/series`, there is no `no_zero_dte` / `session_closed` envelope — no samples (no 0DTE today, pre-session, closed with no rows, or unknown symbol) returns `200` with the normal wrapper and an **empty `bars` array**:
+**Degraded shapes:** as with `/series`, there is no `no_zero_dte` / `session_closed` envelope — no samples (no 0DTE today, pre-session, closed with no rows, or unknown symbol) returns `200` with the normal wrapper and an **empty `bars` array**. Use `market_open` to tell "expected" empty (closed market) from "alert ops" empty (sampler outage during cash hours):
 
 ```jsonc
 {
   "symbol": "SPY",
   "expiration": "2026-06-05",
   "as_of": "2026-06-05T11:02:00Z",
+  "market_open": false,                // outside cash hours → empty bars is expected
   "side": "all",
   "bar_size": "30s",
   "bars": []
@@ -2771,6 +3198,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
   "mode": "raw",                       // echoes the requested mode
   "bar_size": "1m",                    // echoes the requested bar
   "as_of": "2026-06-05T18:45:12Z",     // UTC
+  "market_open": true,                 // true if ET-now is Mon-Fri 09:30–16:00 ET (no holiday calendar)
   "tier_used": "raw",
   "strikes_grid": [585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595],
   "bars": [
@@ -2786,7 +3214,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 }
 ```
 
-**Degraded shapes:** no 0DTE samples in the window (no 0DTE today, pre-session, market closed with no rows, or unknown symbol) returns `200` with empty `strikes_grid` and `bars` arrays — there is no `no_zero_dte` / `session_closed` envelope.
+**Degraded shapes:** no 0DTE samples in the window (no 0DTE today, pre-session, market closed with no rows, or unknown symbol) returns `200` with empty `strikes_grid` and `bars` arrays — there is no `no_zero_dte` / `session_closed` envelope. Use `market_open` to distinguish "expected" empty (closed market) from "alert ops" empty (sampler outage during cash hours).
 
 **Errors:**
 - 400 `bar_unavailable` — `bar` is anything other than `1m`.
@@ -2823,6 +3251,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
   "expiration": "2026-06-05",
   "bar_size": "1m",
   "as_of": "2026-06-05T18:45:12Z",     // UTC
+  "market_open": true,                 // true if ET-now is Mon-Fri 09:30–16:00 ET (no holiday calendar)
   "tier_used": "raw",
   "strikes_grid": [588, 589, 590, 591, 592],
   "bars": [
@@ -2839,7 +3268,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 }
 ```
 
-**Degraded shapes:** no 0DTE samples returns `200` with empty `strikes_grid` and `bars` (no flag envelope), same as `/series` and `/heatmap`. The `gap_intervals` array is reserved and not yet populated.
+**Degraded shapes:** no 0DTE samples returns `200` with empty `strikes_grid` and `bars` (no flag envelope), same as `/series` and `/heatmap`. Use `market_open` to distinguish "expected" empty (closed market) from "alert ops" empty (sampler outage during cash hours). The `gap_intervals` array is reserved and not yet populated.
 
 **Errors:**
 - 400 `bar_unavailable` — `bar` is anything other than `1m`.
@@ -3767,7 +4196,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" https://lab.flashalpha.com/v1/symbols
 {
   "symbols": ["SPY", "QQQ"],
   "count": 2,
-  "note": "Any US equity or ETF symbol is supported. All data is fetched on-demand with a 15-second cache.",
+  "note": "Any US equity or ETF symbol is supported. All data is fetched on-demand; the cache window is per-plan (Free 15 min, Basic/Growth 15 s, Alpha ~1 s).",
   "last_updated": "2026-02-28T16:30:45Z"
 }
 ```
@@ -5049,10 +5478,10 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 |-------|-------------|
 | `earnings_vrp.implied_move_pct` | Live earnings-implied move (%); falls back to the stored implied move if the term structure can't be decomposed. |
 | `earnings_vrp.realized_median` / `realized_mean` | Median / mean of historical absolute actual moves (%). |
-| `earnings_vrp.premium_ratio` | `implied_move / realized_median` — >1 means options are pricing more than history realized. |
+| `earnings_vrp.premium_ratio` | `implied_move / realized_median` — >1 means options are pricing more than history realized. **Null** when the implied move isn't priced yet (`assessment: implied_unavailable`) or there's no realized history (`insufficient_data`) — never `0`. |
 | `earnings_vrp.z_score` | Implied move vs. realized distribution (z); null when fewer than 5 historical moves. |
 | `earnings_vrp.percentile` | Percentile of the implied move within historical realized moves; null when fewer than 5 events. |
-| `earnings_vrp.assessment` | Richness classification: `rich`, `slightly_rich`, `fair`, `slightly_cheap`, `cheap`, or `insufficient_data`. |
+| `earnings_vrp.assessment` | Richness classification: `rich`, `slightly_rich`, `fair`, `slightly_cheap`, `cheap`, `insufficient_data` (no realized history), or `implied_unavailable` (the event-implied move can't be priced/derived yet — e.g. weeks before the report the front expiry carries no earnings premium — so richness is unassessable and `premium_ratio` is null). |
 | `earnings_vrp.directional_bias` | `downside_overpriced` / `upside_overpriced` when one side's historical moves dominate; otherwise null. |
 | `surprise_reaction.beat_avg_move_pct` | Avg actual move (%) following EPS beats (surprise > 1%); nullable. |
 | `surprise_reaction.miss_avg_move_pct` | Avg actual move (%) following EPS misses (surprise < −1%); nullable. |
@@ -5212,7 +5641,7 @@ Cross-sectional screener over upcoming earnings in a forward window, ranked by V
 | Name | In | Required | Default | Description |
 |------|----|----------|---------|-------------|
 | `sort` | query | no | `vrp_richest` | Ranking: `vrp_richest` (highest premium ratio), `cheapest_move` (lowest implied move), `highest_crush` (highest median IV crush), or `importance`. Unrecognized values fall back to `vrp_richest`. |
-| `limit` | query | no | `20` | Max rows returned. Clamped to `1`–`50`. |
+| `limit` | query | no | `20` | Max rows returned. Clamped to `1`–`300`. |
 | `days` | query | no | `14` | Forward window in days. Clamped to `1`–`60`. |
 | `min_importance` | query | no | — | Only include events with `importance >=` this value. |
 
@@ -5238,6 +5667,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
       "implied_move_pct": 4.6,
       "premium_ratio": 1.48,
       "iv_crush_median": 38.5,
+      "expected_crush_pct": 37.2,
       "assessment": "slightly_rich"
     }
   ],
@@ -5249,9 +5679,12 @@ curl -H "X-Api-Key: YOUR_API_KEY" \
 
 | Field | Description |
 |-------|-------------|
-| `events[].premium_ratio` | VRP premium ratio (implied / realized-median); null when no historical actual moves exist. |
-| `events[].iv_crush_median` | Median historical IV crush (%); null when no crush history. |
-| `events[].assessment` | VRP richness classification (`rich`, `slightly_rich`, `fair`, `slightly_cheap`, `cheap`, `insufficient_data`); null when no history. |
+| `events[].premium_ratio` | VRP premium ratio (implied / realized-median); null when no historical actual moves exist **or when the stored implied move isn't populated** for the event (see note below). Never `0`. |
+| `events[].iv_crush_median` | Median historical IV crush (%); null when no crush history. Requires per-event historical ATM IV, which exists only where the options archive reaches, so it is null for most listed reports - prefer `expected_crush_pct`. |
+| `events[].expected_crush_pct` | Forward-looking IV crush (%) from the current term structure: how far the earnings-loaded front IV sits above the settled neighbour. Derived from the same live SVI legs as the implied move, so it is populated wherever `implied_move_pct` is. |
+| `events[].assessment` | VRP richness classification (`rich`, `slightly_rich`, `fair`, `slightly_cheap`, `cheap`, `insufficient_data`, or `implied_unavailable`); null when no history. |
+
+> **Screener coverage caveat:** unlike `/earnings/vrp`, the screener does **not** compute the implied move live from the term structure — it reads the *stored* `implied_move_pct`, which is only populated for a subset of events. When it's absent, `premium_ratio` / `assessment` are null even for large, well-covered names, and the `vrp_richest` / `cheapest_move` sorts degrade to date order. For a reliable per-symbol richness read use `GET /v1/earnings/vrp/{symbol}`.
 | `count` | Total matched events before `limit` is applied (the `events` array is capped at `limit`). |
 
 ### Errors
@@ -5578,7 +6011,7 @@ The top-level keys are snake_case (`underlying_price`, `as_of`, `expected_moves`
 
 ## Screener
 
-Cross-sectional screening over the live in-memory universe. `POST /v1/screener` runs a structured query — preset/custom universe, a recursive filter tree, computed-formula fields, multi-key sort, field projection, and pagination — and returns the matching rows. `GET /v1/screener/fields` lists the queryable field names and types. A deeper guide to the filter grammar and field taxonomy lives in [screener.md](screener.md).
+Cross-sectional screening over the live in-memory universe. `POST /v1/screener` runs a structured query — preset/custom universe, a recursive filter tree, computed-formula fields, multi-key sort, field projection, and pagination — and returns the matching rows. `GET /v1/screener/fields` lists the queryable field names and types. A deeper guide to the filter grammar and field taxonomy lives in [screener.md](https://lab.flashalpha.com/llms/screener.md).
 
 ---
 
@@ -5768,4 +6201,4 @@ All endpoints return consistent error responses.
 - Implied volatility is smoothed via **SVI** (Stochastic Volatility Inspired) parameterization
 - Dealer position is the **opposite** of net exposure (dealers are counterparty)
 - OI changes are **day-over-day** deltas (when prior-day snapshot is available)
-- Any US equity or ETF symbol is supported — data is fetched on-demand and cached for 15 seconds
+- Any US equity or ETF symbol is supported — data is fetched on-demand and cached per plan (Free 15 min, Basic/Growth 15 s, Alpha ~1 s)

@@ -4,6 +4,34 @@ All notable changes to the FlashAlpha MCP server documentation/metadata package 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.3.0 - 2026-08-25
+
+### Added
+- **Documented the `data_as_of` response envelope.** Every tool result carries
+  `data_as_of`, reporting when each upstream feed last delivered to the node that
+  answered - equity and index spot, their option chains, futures and futures
+  options, the classified trade tape, settled open interest, and the macro series -
+  plus `endpoint_version` identifying the deployment. Historical replay tools carry
+  a second object, `archive_as_of`, giving the vintage of the archive rows actually
+  replayed.
+
+### Changed
+- **Synced `docs/api.md` from the canonical source.** The copy here was 501 lines
+  behind and stated the cache age as a flat 15 seconds, which has been tier
+  dependent for some time (15 minutes on Free, 15 seconds on Basic and Growth,
+  ~1 second on Alpha and Enterprise). It also predated the methodology and glossary
+  links and the structural-vs-flow framing of the exposure metrics.
+
+### Notes
+- The envelope matters more for an MCP client than for a normal SDK caller: a model
+  reading a tool result has no other way to tell a current figure from a stale one,
+  and will otherwise present both with equal confidence.
+- Read each feed against its own cadence rather than against `as_of`. Settled open
+  interest dated to the previous session's close is correct, since it is published
+  once per session; an options feed an hour behind during the regular session is
+  not.
+- A `null` means that node has not seen that feed, not that it is broken.
+
 ## [1.6.3] — 2026-07-08
 
 ### Changed — futures discoverability in agent-facing metadata
