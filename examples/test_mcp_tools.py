@@ -170,7 +170,7 @@ def build_tests(api_key: str) -> list[tuple[str, dict, str]]:
         ("get_zero_dte_flow", ticker_args, f"0DTE flow snapshot for {TEST_TICKER}"),
         (
             "get_strategy",
-            {**ticker_args, "strategy": "flow_anomaly"},
+            {**base, "symbol": TEST_TICKER, "signal": "flow_anomaly"},
             f"flow-anomaly strategy signal for {TEST_TICKER}",
         ),
         ("get_earnings_calendar", {**base, "days": 7}, "earnings calendar (next 7 days)"),

@@ -4,6 +4,14 @@ All notable changes to the FlashAlpha MCP server documentation/metadata package 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.7.0 - 2026-11-06
+
+### Added
+- **sell-window on MCP.** `get_strategy` with `signal=sell_window` answers "should you sell options today?" for SPY, QQQ and IWM: sell, skip or unavailable for four listed expiries, with the trades to place on a sell. Documented in the README, `AGENTS.md`, `llms.txt`, `docs/api.md` and `docs/sell-window.md`.
+
+### Fixed
+- The docs named the `get_strategy` parameter `strategy`. The tool takes `signal`.
+
 ## 1.3.0 - 2026-08-25
 
 ### Added
