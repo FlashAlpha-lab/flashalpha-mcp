@@ -146,6 +146,32 @@ Discovery + endpoints:
 
 ---
 
+## sell-window: should you sell options today?
+
+Option sellers get wiped out on a few bad days. sell-window tells you which days to stay out, and on the days it says sell, it hands you the trades: which expiry, which strikes and how to exit. Every session, for SPY, QQQ and IWM. More than 5 million backtests led to this one endpoint.
+
+On MCP, call `get_strategy` with `signal` set to `sell_window` and `symbol` set to `SPY`, `QQQ` or `IWM`. Ask your assistant:
+
+- *"Should I sell options on SPY today?"*
+- *"Which strikes does sell-window pick for QQQ this week?"*
+- *"Is today a skip day for IWM 0DTE?"*
+
+| Backtest, 2018 to 2026 | Following sell-window | Selling the same trades every day |
+|---|---|---|
+| Max drawdown at the same trade size | $255k | $959k |
+| Worst month at the same trade size | -$171k | -$307k |
+| Sharpe ratio | 0.76 | 0.61 |
+| Total P&L at the same max drawdown | $3.55M | $2.32M |
+| Worst day at the same max drawdown | -$258k | -$385k |
+
+Cut the risk or earn more. Keep your trade size and the deepest drawdown falls 73%. Or size up about 3.8 times, until the deepest drawdown matches, and you earn 53% more. These are two separate choices, not one result.
+
+**Plans:** Live answers need Basic or higher through November 2026, and Growth or higher from December 1, 2026. Backtesting any past session needs Alpha or higher.
+
+**Read more:** [API docs](https://flashalpha.com/docs/lab-api-strategies-sell-window?utm_source=github&utm_medium=readme&utm_campaign=repo-flashalpha-mcp&utm_content=sell-window) | [trading guide](https://flashalpha.com/articles/complete-guide-trading-sell-window-spy-qqq-iwm?utm_source=github&utm_medium=readme&utm_campaign=repo-flashalpha-mcp&utm_content=sell-window) | [every backtested trade](https://flashalpha.com/articles/sell-window-backtest-every-trade-2018-2026?utm_source=github&utm_medium=readme&utm_campaign=repo-flashalpha-mcp&utm_content=sell-window) | [sell-window in depth](https://github.com/FlashAlpha-lab/flashalpha-mcp/blob/main/docs/sell-window.md) | [plans](https://flashalpha.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=repo-flashalpha-mcp&utm_content=sell-window) | [live forward test on Discord](https://discord.gg/UtH22J8df2)
+
+*Backtest on SPY, QQQ and IWM, January 2018 to October 2026, at halfway fills and $1 per contract. At one contract set per signal, following it made $945,541 on 20,883 trades; selling every day made $2,321,150 on 56,975. At 3.76 times the contracts, both fell $958,924 at their deepest, and the worst month was -$642,135 against -$307,241. Past results do not guarantee future returns, and short options can lose more than the premium collected. The skip call applies to new trades, so it cannot protect open positions from a sudden shock. This is data, not investment advice.*
+
 ## Data provenance: `data_as_of`
 
 Every tool result carries the API's response envelope: `data_as_of`, reporting when each
@@ -272,9 +298,9 @@ Tool names below are the **exact strings sent via `tools/call`** — snake_case,
 |---|---|
 | `get_zero_dte_flow` | 0DTE flow snapshot: live exposure + net flow direction by strike, plus intraday series, hedge flow, heatmap, and strike-flow views (`bar`, `minutes`, `side`, `metric`, `mode`) |
 
-#### Strategy Signals (10 strategies via `get_strategy`)
-One tool, parameterized by `strategy` kind, returning the uniform strategy-decision envelope (`decision`, `score`, `confidence`, `regime`, `best_structures[]`, `metrics`, `risk_flags[]`, `why[]`, `avoid_if[]`, `data_quality`).
-| `strategy` value | Description |
+#### Strategy Signals (11 signals via `get_strategy`)
+One tool, parameterized by `signal`, returning the uniform strategy-decision envelope (`decision`, `score`, `confidence`, `regime`, `best_structures[]`, `metrics`, `risk_flags[]`, `why[]`, `avoid_if[]`, `data_quality`).
+| `signal` value | Description |
 |---|---|
 | `flow_anomaly` | Directional options-flow imbalance → matching short vertical spread (`expiry`) |
 | `expiry_positioning` | Dealer expiry positioning → iron-condor / butterfly candidates (`expiry`, `minOpenInterest`, `wingWidth`) |
@@ -286,6 +312,7 @@ One tool, parameterized by `strategy` kind, returning the uniform strategy-decis
 | `skew` | Skew steepness/richness → risk-reversal / ratio ideas (`expiry`) |
 | `term_structure` | Calendar / diagonal opportunities from term-structure shape |
 | `tail_pricing` | Tail-risk richness → cheap-convexity / hedge candidates (`expiry`) |
+| `sell_window` | Should you sell options today? Sell, skip or unavailable per listed expiry for SPY, QQQ and IWM, with the trades to place on a sell. Its own response shape, not the envelope |
 
 #### Earnings Analytics
 | Tool | Description |
@@ -396,6 +423,7 @@ Once connected, ask your AI assistant questions like:
 15. *"Give me the SPX dealer exposure sheet and term structure, plus the day-over-day OI diff."*
 16. *"What's the dispersion / index-vs-component vol-arb read on SPX against its top components?"*
 17. *"Show the VIX macro state and the dealer-premium flow on QQQ over the last 30 minutes."*
+18. *"Should I sell options on SPY today? If yes, which strikes and how do I exit?"*
 
 ---
 

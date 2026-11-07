@@ -2,7 +2,7 @@
 analytics, and multi-leg structure math — over the hosted Streamable-HTTP MCP server.
 
 What it does:
-  1. get_strategy(strategy="flow_anomaly")  -> uniform strategy-decision envelope
+  1. get_strategy(signal="flow_anomaly")    -> uniform strategy-decision envelope
   2. get_earnings_calendar(days=7)          -> upcoming earnings with expected moves
   3. post_structure_pnl(legs=...)           -> P&L curve for a short call spread
 
@@ -73,7 +73,7 @@ def main() -> None:
     session.headers.update({"Content-Type": "application/json"})
 
     print(f"== Strategy signal: flow_anomaly on {TICKER} ==")
-    res = call_tool(session, "get_strategy", {**base, "ticker": TICKER, "strategy": "flow_anomaly"})
+    res = call_tool(session, "get_strategy", {**base, "symbol": TICKER, "signal": "flow_anomaly"})
     print(text_of(res) or json.dumps(res)[:600])
 
     print("\n== Earnings calendar (next 7 days) ==")

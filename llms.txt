@@ -86,7 +86,17 @@ reference: https://flashalpha.com/docs/lab-api-overview#response-envelope
 - `get_zero_dte_flow`: 0DTE snapshot (exposure + net flow direction by strike), intraday series, hedge flow, heatmap, strike-flow (`bar`, `minutes`, `side`, `metric`, `mode`).
 
 ## Strategy-signal tools
-- `get_strategy`: one tool, `strategy` kind selects the model. Returns a uniform decision envelope (`decision`, `score`, `confidence`, `regime`, `best_structures[]`, `metrics`, `risk_flags[]`, `why[]`, `avoid_if[]`, `data_quality`). Strategies: `flow_anomaly`, `expiry_positioning`, `zero_dte`, `dealer_regime`, `vol_carry`, `yield_enhancement`, `surface_anomaly`, `skew`, `term_structure`, `tail_pricing`.
+- `get_strategy`: one tool, `signal` selects the model. Returns a uniform decision envelope (`decision`, `score`, `confidence`, `regime`, `best_structures[]`, `metrics`, `risk_flags[]`, `why[]`, `avoid_if[]`, `data_quality`). Strategies: `flow_anomaly`, `expiry_positioning`, `zero_dte`, `dealer_regime`, `vol_carry`, `yield_enhancement`, `surface_anomaly`, `skew`, `term_structure`, `tail_pricing`.
+
+## sell-window: should you sell options today?
+`get_strategy` with `signal=sell_window` answers that question every session for SPY, QQQ and IWM: sell, skip or unavailable for four listed expiries, with the trades to place on a sell (strikes, quotes, exit rule). More than 5 million backtests led to it. Own response shape, not the decision envelope. Live answers need Basic or higher through November 2026, and Growth or higher from December 1, 2026. Backtesting any past session needs Alpha or higher.
+
+Backtest, 2018 to 2026, against selling the same trades every day: at the same trade size, max drawdown $255k vs $959k and Sharpe ratio 0.76 vs 0.61; sized to the same max drawdown, total P&L $3.55M vs $2.32M. These are two separate choices, not one result. Past results do not guarantee future returns, and this is data, not investment advice.
+
+- Reference: https://github.com/FlashAlpha-lab/flashalpha-mcp/blob/main/docs/sell-window.md
+- API docs: https://flashalpha.com/docs/lab-api-strategies-sell-window
+- Backtest: https://flashalpha.com/articles/sell-window-backtest-every-trade-2018-2026
+- Trading guide: https://flashalpha.com/articles/complete-guide-trading-sell-window-spy-qqq-iwm
 
 ## Earnings-analytics tools
 - `get_earnings`: per-symbol earnings analytics — expected move, history, IV crush, VRP, dealer positioning, strategies.
