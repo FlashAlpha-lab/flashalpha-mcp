@@ -33,7 +33,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" https://lab.flashalpha.com/v1/exposure/gex/SPY
 
 **3. Explore the response** — you'll get gamma exposure by strike with OI, volume, and day-over-day changes.
 
-That's it. Every US equity and ETF symbol is supported. Data is fetched on-demand. The maximum age of the cached snapshot you may be served depends on your plan: 15 minutes on Free, 15 seconds on Basic and Growth, ~1 second on Alpha and Enterprise (see [plan tiers](https://flashalpha.com/docs/tiers.md)).
+That's it. Every US equity and ETF symbol is supported. Data is fetched on-demand. Free responses may be cached for up to 15 minutes.
 
 ---
 
@@ -4197,7 +4197,7 @@ curl -H "X-Api-Key: YOUR_API_KEY" https://lab.flashalpha.com/v1/symbols
 {
   "symbols": ["SPY", "QQQ"],
   "count": 2,
-  "note": "Any US equity or ETF symbol is supported. All data is fetched on-demand; the cache window is per-plan (Free 15 min, Basic/Growth 15 s, Alpha ~1 s).",
+  "note": "Any US equity or ETF symbol is supported. All data is fetched on-demand; Free responses may be cached for up to 15 minutes.",
   "last_updated": "2026-02-28T16:30:45Z"
 }
 ```
@@ -6304,4 +6304,4 @@ All endpoints return consistent error responses.
 - Implied volatility is smoothed via **SVI** (Stochastic Volatility Inspired) parameterization
 - Dealer position is the **opposite** of net exposure (dealers are counterparty)
 - OI changes are **day-over-day** deltas (when prior-day snapshot is available)
-- Any US equity or ETF symbol is supported — data is fetched on-demand and cached per plan (Free 15 min, Basic/Growth 15 s, Alpha ~1 s)
+- Any US equity or ETF symbol is supported — data is fetched on-demand, and Free responses may be cached for up to 15 minutes
