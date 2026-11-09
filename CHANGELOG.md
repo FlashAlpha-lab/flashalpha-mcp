@@ -25,10 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Changed
 - **Synced `docs/api.md` from the canonical source.** The copy here was 501 lines
-  behind and stated the cache age as a flat 15 seconds, which has been tier
-  dependent for some time (15 minutes on Free, 15 seconds on Basic and Growth,
-  ~1 second on Alpha and Enterprise). It also predated the methodology and glossary
-  links and the structural-vs-flow framing of the exposure metrics.
+  behind, its data-freshness note was out of date, and it predated the methodology
+  and glossary links and the structural-vs-flow framing of the exposure metrics.
 
 ### Notes
 - The envelope matters more for an MCP client than for a normal SDK caller: a model
