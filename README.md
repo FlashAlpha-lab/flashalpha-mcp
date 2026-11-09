@@ -433,7 +433,7 @@ Four tiers. Annual saves 20% and locks the price for 12 months.
 
 | Plan | Monthly | Annual (per month) | Annual total | Daily quota | Freshness |
 |---|---|---|---|---|---|
-| **Free** | $0 | — | — | 5 / day | 15-minute |
+| **Free** | $0 | — | — | 5 / day | Delayed |
 | **Basic** | $79/mo | $63/mo | $756/yr | 250 / day | Live |
 | **Growth** | $299/mo | $239/mo | $2,868/yr | 2,500 / day | Live |
 | **Alpha** | $1,499/mo | $1,199/mo | $14,388/yr | Unlimited | Live |
