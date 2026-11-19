@@ -4,6 +4,13 @@ All notable changes to the FlashAlpha MCP server documentation/metadata package 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.8.0 - 2026-11-19
+
+### Added
+- **`compare_expiry_impact`**: compares the current SPY or QQQ gamma distribution with the same captured inputs after excluding one expiry. A sensitivity, not a post-expiry forecast. Growth or higher.
+- **`get_strike_expiry_dependency`**: attributes the gamma at one exact observed SPY or QQQ strike to its expiries, with the dominant expiry share. Growth or higher.
+- Both tools are in the README catalog, `AGENTS.md`, `llms.txt` and `docs/api.md` (`GET /v1/exposure/expiry-impact/{symbol}`, `GET /v1/exposure/strike-dependency/{symbol}`).
+
 ## 1.7.0 - 2026-11-06
 
 ### Added

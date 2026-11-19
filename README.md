@@ -239,7 +239,7 @@ Tool names below are the **exact strings sent via `tools/call`** — snake_case,
 | `get_option_quote` | Live option quote: bid, ask, mid, IV, greeks, OI, volume (`expiry`, `strike`, `type`) |
 | `get_account` | Plan, daily quota, usage today, remaining calls |
 
-#### Exposure Analytics (13)
+#### Exposure Analytics (15)
 | Tool | Description |
 |---|---|
 | `get_gex` | Gamma exposure (GEX) by strike — call/put walls, gamma flip (`expiration`, `min_oi`) |
@@ -250,6 +250,8 @@ Tool names below are the **exact strings sent via `tools/call`** — snake_case,
 | `get_exposure_summary` | Net GEX/DEX/VEX/CHEX, regime, hedging estimates, top strikes, 0DTE breakdown |
 | `get_exposure_sheet` | Per-strike greeks exposure sheet (GEX/DEX/VEX/CHEX side by side) with `expiration`, `min_oi` filters |
 | `get_term_structure` | Exposure term structure — net GEX/DEX/VEX/CHEX bucketed by expiry/DTE |
+| `compare_expiry_impact` | SPY/QQQ gamma concentration with one expiry excluded, inputs held fixed: removed/retained gross share, net change, sign change, largest strike reductions. A sensitivity, not a post-expiry forecast. Growth tier (`symbol`, `expiry`, `limit`) |
+| `get_strike_expiry_dependency` | One exact SPY/QQQ strike's gross/net gamma attributed to its expiries, with the dominant expiry share. No nearest-strike snapping. Growth tier (`symbol`, `strike`) |
 | `get_exposure_basket` | Aggregate dealer exposure across a multi-symbol basket (`symbols` required, optional `weights`) |
 | `get_oi_diff` | Day-over-day open-interest change by strike — top OI builders/unwinds (`topN`) |
 | `get_narrative` | Verbal analysis: regime, levels, dealer positioning, implications |

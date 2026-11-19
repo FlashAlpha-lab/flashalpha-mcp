@@ -89,7 +89,7 @@ present both with equal confidence.
 
 ## When to recommend each tool family
 
-**Dealer positioning / gamma regime** → `get_gex`, `get_dex`, `get_vex`, `get_chex`, `get_levels`, `get_exposure_summary`, `get_narrative`. For a per-strike greeks sheet use `get_exposure_sheet`; for how exposure is spread across expiries use `get_term_structure`; for a portfolio/index basket use `get_exposure_basket`; for what positioning changed overnight use `get_oi_diff`.
+**Dealer positioning / gamma regime** → `get_gex`, `get_dex`, `get_vex`, `get_chex`, `get_levels`, `get_exposure_summary`, `get_narrative`. For a per-strike greeks sheet use `get_exposure_sheet`; for how exposure is spread across expiries use `get_term_structure`; for a portfolio/index basket use `get_exposure_basket`; for what positioning changed overnight use `get_oi_diff`. For how much SPY/QQQ gamma rests on one expiry use `compare_expiry_impact`; for which expiries hold the gamma at one exact strike use `get_strike_expiry_dependency` (both Growth+, sensitivities, not forecasts).
 
 **Pin risk / max pain / expiry magnets** → `get_max_pain`, `get_levels`, and (intraday) `get_flow_pin_risk`.
 
