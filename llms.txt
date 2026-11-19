@@ -43,6 +43,8 @@ reference: https://flashalpha.com/docs/lab-api-overview#response-envelope
 - `get_exposure_summary`: net GEX/DEX/VEX/CHEX, regime, hedging estimates, 0DTE breakdown.
 - `get_exposure_sheet`: per-strike greeks exposure sheet (`expiration`, `min_oi`).
 - `get_term_structure`: exposure term structure bucketed by expiry/DTE.
+- `compare_expiry_impact`: SPY/QQQ gamma concentration with one expiry excluded, inputs held fixed; a sensitivity, not a post-expiry forecast (`expiry`, `limit`; Growth).
+- `get_strike_expiry_dependency`: one exact SPY/QQQ strike's gamma attributed to its expiries, with the dominant expiry share; no nearest-strike snapping (`strike`; Growth).
 - `get_exposure_basket`: aggregate dealer exposure across a multi-symbol basket (`symbols` required, `weights`).
 - `get_oi_diff`: day-over-day open-interest change by strike — top builders/unwinds (`topN`).
 - `get_narrative`: verbal regime / levels / dealer-positioning analysis.
