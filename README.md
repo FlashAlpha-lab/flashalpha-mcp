@@ -480,6 +480,7 @@ Tier gating is enforced server-side per tool. Callers hitting a tool above their
 - [llms.txt](https://flashalpha.com/llms.txt) — machine-readable index for LLMs
 - [Examples](https://github.com/FlashAlpha-lab/flashalpha-examples) — runnable tutorials
 - [GEX Explained](https://github.com/FlashAlpha-lab/gex-explained)
+- [TradingView GEX by FlashAlpha](https://github.com/FlashAlpha-lab/tradingview-gex-flashalpha) - call wall, put wall, gamma flip and max pain on a live candlestick chart
 - [0DTE Options Analytics](https://github.com/FlashAlpha-lab/0dte-options-analytics)
 - [Volatility Surface Python](https://github.com/FlashAlpha-lab/volatility-surface-python)
 - [Awesome Options Analytics](https://github.com/FlashAlpha-lab/awesome-options-analytics)
